@@ -1,0 +1,6 @@
+{
+  "name": "CardioGuard AI",
+  "description": "An AI-powered heart health companion featuring medication reminders, prescription tracking, and real-time monitoring graphs for both mobile and desktop views.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
