@@ -88,67 +88,11 @@ export default function App() {
   const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
 
   // Default Clinical Dataset to seed Firestore on new user register
-  const DEFAULT_MEDS = [
-    {
-      id: "med-1",
-      name: "Metoprolol Succinate",
-      dosage: "50mg",
-      time: "08:00 AM",
-      frequency: "Daily",
-      category: "Beta-Blocker",
-      isTakenToday: false,
-      takenHistory: { "2026-07-02": true, "2026-07-01": true },
-      remainingPills: 24,
-      totalPills: 30,
-      instructions: "Take with or immediately after a meal. Do not crush."
-    },
-    {
-      id: "med-2",
-      name: "Lisinopril",
-      dosage: "10mg",
-      time: "08:00 AM",
-      frequency: "Daily",
-      category: "ACE-Inhibitor",
-      isTakenToday: false,
-      takenHistory: { "2026-07-02": true, "2026-07-01": false },
-      remainingPills: 12,
-      totalPills: 30,
-      instructions: "Take at the same time every morning. Can be taken with or without food."
-    },
-    {
-      id: "med-3",
-      name: "Atorvastatin (Lipitor)",
-      dosage: "20mg",
-      time: "09:00 PM",
-      frequency: "Daily",
-      category: "Statin",
-      isTakenToday: false,
-      takenHistory: { "2026-07-02": true, "2026-07-01": true },
-      remainingPills: 18,
-      totalPills: 30,
-      instructions: "Take in the evening. Avoid excessive grapefruit juice consumption."
-    }
-  ];
+  const medicationslist =[];
 
-  const DEFAULT_VITALS = [
-    { id: "v-1", timestamp: new Date().toISOString(), heartRate: 72, bloodPressureSystolic: 122, bloodPressureDiastolic: 80, spo2: 98, weight: 70, notes: "Feeling fine. Post-breakfast." }
-  ];
+  const vitalsList = [];
 
-  const DEFAULT_RX = [
-    {
-      id: "rx-101",
-      doctorName: "Dr. Sarah Jenkins",
-      doctorSpecialty: "Cardiologist (Heart Failure Specialist)",
-      date: "2026-06-15",
-      medications: [
-        { name: "Metoprolol Succinate", dosage: "50mg", frequency: "Daily (Morning)", duration: "6 Months" },
-        { name: "Lisinopril", dosage: "10mg", frequency: "Daily (Morning)", duration: "6 Months" }
-      ],
-      diagnosis: "Mild Left Ventricular Dysfunction",
-      notes: "Patient is recovering well. Maintain light low-sodium diet. Keep daily log of morning blood pressure and heart rate.",
-      signature: "S. Jenkins, MD, FACC"
-    }
-  ];
+  const prescriptionList = [];
 
   // Auth State Listener
   useEffect(() => {
@@ -194,19 +138,19 @@ export default function App() {
 
             // Seed default medications, vitals, prescriptions to Firestore
             await Promise.all([
-              ...DEFAULT_MEDS.map(m => setDoc(doc(db, "users", currentUser.uid, "medications", m.id), m)),
-              ...DEFAULT_VITALS.map(v => setDoc(doc(db, "users", currentUser.uid, "vitals", v.id), v)),
-              ...DEFAULT_RX.map(rx => setDoc(doc(db, "users", currentUser.uid, "prescriptions", rx.id), rx))
+              ...medicationslist.map(m => setDoc(doc(db, "users", currentUser.uid, "medications", m.id), m)),
+              ...vitalsList.map(v => setDoc(doc(db, "users", currentUser.uid, "vitals", v.id), v)),
+              ...prescriptionList.map(rx => setDoc(doc(db, "users", currentUser.uid, "prescriptions", rx.id), rx))
             ]);
 
-            setMedications(DEFAULT_MEDS as any);
-            setVitals(DEFAULT_VITALS as any);
-            setPrescriptions(DEFAULT_RX as any);
+            setMedications(medicationslist as any);
+            setVitals(vitalsList as any);
+            setPrescriptions(prescriptionList as any);
 
             // Synchronize with offline cache
-            localStorage.setItem(`cg_meds_${currentUser.uid}`, JSON.stringify(DEFAULT_MEDS));
-            localStorage.setItem(`cg_vitals_${currentUser.uid}`, JSON.stringify(DEFAULT_VITALS));
-            localStorage.setItem(`cg_prescriptions_${currentUser.uid}`, JSON.stringify(DEFAULT_RX));
+            localStorage.setItem(`cg_meds_${currentUser.uid}`, JSON.stringify(medicationslist));
+            localStorage.setItem(`cg_vitals_${currentUser.uid}`, JSON.stringify(vitalsList));
+            localStorage.setItem(`cg_prescriptions_${currentUser.uid}`, JSON.stringify(prescriptionList));
             localStorage.setItem(`cg_config_${currentUser.uid}`, JSON.stringify(newConfig));
             localStorage.setItem(`cg_diseases_${currentUser.uid}`, "");
             localStorage.setItem(`cg_allergies_${currentUser.uid}`, "");
@@ -294,9 +238,9 @@ export default function App() {
             console.log("Successfully restored user state from local offline cache.");
           } else {
             console.log("No local cache found. Seeding defaults locally.");
-            setMedications(DEFAULT_MEDS as any);
-            setVitals(DEFAULT_VITALS as any);
-            setPrescriptions(DEFAULT_RX as any);
+            setMedications(medicationslist as any);
+            setVitals(vitalsList as any);
+            setPrescriptions(prescriptionList as any);
             const defaultConfig = {
               primaryEmergencyNumber: "112",
               trustedName: "",
@@ -309,9 +253,9 @@ export default function App() {
             setClinicalName(defaultName);
             setChatMessages([]);
 
-            localStorage.setItem(`cg_meds_${currentUser.uid}`, JSON.stringify(DEFAULT_MEDS));
-            localStorage.setItem(`cg_vitals_${currentUser.uid}`, JSON.stringify(DEFAULT_VITALS));
-            localStorage.setItem(`cg_prescriptions_${currentUser.uid}`, JSON.stringify(DEFAULT_RX));
+            localStorage.setItem(`cg_meds_${currentUser.uid}`, JSON.stringify(medicationslist));
+            localStorage.setItem(`cg_vitals_${currentUser.uid}`, JSON.stringify(vitalsList));
+            localStorage.setItem(`cg_prescriptions_${currentUser.uid}`, JSON.stringify(prescriptionList));
             localStorage.setItem(`cg_config_${currentUser.uid}`, JSON.stringify(defaultConfig));
             localStorage.setItem(`cg_diseases_${currentUser.uid}`, "");
             localStorage.setItem(`cg_allergies_${currentUser.uid}`, "");
