@@ -9,7 +9,7 @@ import AndroidFrame from "./components/AndroidFrame";
 import DesktopDashboard from "./components/DesktopDashboard";
 import MedicationManager from "./components/MedicationManager";
 import VitalsTracker from "./components/VitalsTracker";
-import PrescriptionViewer from "./components/PrescriptionViewer";
+import PrescriptionViewer from "./components/PrescriptionViewer.tsx";
 import AiCompanion from "./components/AiCompanion";
 import AuthScreen from "./components/AuthScreen";
 import AdminPanel from "./components/AdminPanel";
@@ -534,7 +534,7 @@ export default function App() {
     }
   };
 
-  // Upload/mock prescription scan
+  // Upload prescription scan (real AI-extracted data + captured photo)
   const handleUploadPrescriptionMock = async (newRx: {
     doctorName: string;
     doctorSpecialty: string;
@@ -543,6 +543,8 @@ export default function App() {
     notes: string;
     signature: string;
     medications: { name: string; dosage: string; frequency: string; duration: string }[];
+    imageBase64?: string;
+    thumbnailBase64?: string;
   }) => {
     const fallbackRx: Prescription = {
       id: "rx-" + Math.random().toString(36).substring(2, 9),
@@ -552,7 +554,9 @@ export default function App() {
       medications: newRx.medications,
       diagnosis: newRx.diagnosis,
       notes: newRx.notes,
-      signature: newRx.signature
+      signature: newRx.signature,
+      imageBase64: newRx.imageBase64,
+      thumbnailBase64: newRx.thumbnailBase64
     };
 
     const nextRx = [...prescriptions, fallbackRx];
@@ -687,7 +691,7 @@ export default function App() {
         return (
           <PrescriptionViewer
             prescriptions={prescriptions}
-            onUploadPrescriptionMock={handleUploadPrescriptionMock}
+            onUploadPrescription={handleUploadPrescriptionMock}
             onImportMedsFromPrescription={handleImportMedsFromPrescription}
             compactMode={true}
           />

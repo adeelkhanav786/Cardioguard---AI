@@ -15,7 +15,7 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "15000kb" }));
 
 app.use((req, res, next) => {
   console.log(`[CardioGuard Server] INCOMING REQUEST: ${req.method} ${req.originalUrl}`);
@@ -476,6 +476,82 @@ Patient takes daily blood pressure routines. Assess for bradycardia or acute hyp
   } catch (err: any) {
     console.error("Gemini API Error in /api/gemini/health-summary:", err);
     res.status(500).json({ error: "Failed to generate health summary: " + err.message });
+  }
+});
+
+// POST Prescription Scanner - AI Vision extraction
+app.post("/api/gemini/scan-prescription", async (req, res) => {
+  try {
+    const { imageBase64, mimeType } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: "imageBase64 is required." });
+    }
+
+    const client = getAiClient();
+    if (!client) {
+      return res.status(503).json({
+        error: "AI Scanner is offline: GEMINI_API_KEY is not configured on the server. Real prescription scanning requires a valid Gemini API key."
+      });
+    }
+
+    const systemInstruction = `You are an expert clinical OCR and prescription-parsing assistant. You will be given a photo of a doctor's prescription slip.
+Read all visible text carefully, including handwritten sections, and extract the following structured information.
+
+Respond strictly in this JSON format and nothing else:
+{
+  "doctorName": "string (e.g. 'Dr. John Smith'), or 'Unknown Doctor' if illegible",
+  "doctorSpecialty": "string, or 'General Practitioner' if not stated",
+  "date": "YYYY-MM-DD if visible, otherwise today's best guess or empty string",
+  "diagnosis": "string summarizing the diagnosis/condition mentioned, or 'Not specified' if absent",
+  "notes": "string, any additional instructions or clinical notes on the slip",
+  "signature": "string, the doctor's printed/signed name and credentials if visible",
+  "medications": [
+    {
+      "name": "medicine name exactly as written, expand abbreviations where confident (e.g. 'Metoprolol Succ' -> 'Metoprolol Succinate')",
+      "dosage": "e.g. '50mg', '5ml', '1 tablet'",
+      "frequency": "e.g. 'Twice Daily', 'Once at night', 'Every 8 hours'",
+      "duration": "e.g. '7 Days', '3 Months', 'Ongoing'"
+    }
+  ]
+}
+
+Rules:
+- If the image is not a legible prescription/medical document, still return valid JSON with your best-effort reading, and put "Could not clearly read this image" in the "notes" field.
+- Never invent a medicine that is not visibly written or strongly implied on the slip.
+- If no medications are found at all, return an empty array for "medications".`;
+
+    const response = await client.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType: mimeType || "image/jpeg", data: imageBase64 } },
+            { text: "Extract the prescription details from this image following the required JSON schema." }
+          ]
+        }
+      ],
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        temperature: 0.2
+      }
+    });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(response.text);
+    } catch (e) {
+      return res.status(502).json({ error: "AI scanner returned an unreadable response. Please try again with a clearer photo." });
+    }
+
+    // Basic shape safety net
+    if (!Array.isArray(parsed.medications)) parsed.medications = [];
+
+    res.json(parsed);
+  } catch (err: any) {
+    console.error("Gemini API Error in /api/gemini/scan-prescription:", err);
+    res.status(500).json({ error: "Failed to scan prescription: " + err.message });
   }
 });
 

@@ -31,6 +31,8 @@ export interface Prescription {
   notes: string;
   diagnosis: string;
   signature: string;
+  imageBase64?: string; // Full compressed scan, data URI (e.g. "data:image/jpeg;base64,...")
+  thumbnailBase64?: string; // Small preview, data URI
 }
 
 export interface VitalSign {

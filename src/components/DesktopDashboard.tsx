@@ -144,7 +144,7 @@ export default function DesktopDashboard({
 
           <PrescriptionViewer
             prescriptions={prescriptions}
-            onUploadPrescriptionMock={onUploadPrescription}
+            onUploadPrescription={onUploadPrescription}
             onImportMedsFromPrescription={onImportMedsFromPrescription}
           />
         </div>

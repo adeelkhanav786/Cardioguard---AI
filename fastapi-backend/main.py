@@ -75,69 +75,11 @@ class ChatRequest(BaseModel):
     messages: List[ChatMessage]
 
 # --- In-Memory Seed Data ---
-medications_db = [
-    {
-        "id": "med-1",
-        "name": "Metoprolol Succinate",
-        "dosage": "50mg",
-        "time": "08:00 AM",
-        "frequency": "Daily",
-        "category": "Beta-Blocker",
-        "isTakenToday": False,
-        "takenHistory": {"2026-07-02": True, "2026-07-01": True},
-        "remainingPills": 24,
-        "totalPills": 30,
-        "instructions": "Take with or immediately after a meal. Do not crush."
-    },
-    {
-        "id": "med-2",
-        "name": "Lisinopril",
-        "dosage": "10mg",
-        "time": "08:00 AM",
-        "frequency": "Daily",
-        "category": "ACE-Inhibitor",
-        "isTakenToday": False,
-        "takenHistory": {"2026-07-02": True, "2026-07-01": False},
-        "remainingPills": 12,
-        "totalPills": 30,
-        "instructions": "Take at the same time every morning. Can be taken with or without food."
-    },
-    {
-        "id": "med-3",
-        "name": "Atorvastatin (Lipitor)",
-        "dosage": "20mg",
-        "time": "09:00 PM",
-        "frequency": "Daily",
-        "category": "Statin",
-        "isTakenToday": False,
-        "takenHistory": {"2026-07-02": True, "2026-07-01": True},
-        "remainingPills": 18,
-        "totalPills": 30,
-        "instructions": "Take in the evening. Avoid excessive grapefruit juice consumption."
-    }
-]
+medications_db = []
 
-prescriptions_db = [
-    {
-        "id": "rx-101",
-        "doctorName": "Dr. Sarah Jenkins",
-        "doctorSpecialty": "Cardiologist (Heart Failure Specialist)",
-        "date": "2026-06-15",
-        "medications": [
-            {"name": "Metoprolol Succinate", "dosage": "50mg", "frequency": "Daily (Morning)", "duration": "6 Months"},
-            {"name": "Lisinopril", "dosage": "10mg", "frequency": "Daily (Morning)", "duration": "6 Months"}
-        ],
-        "diagnosis": "Mild Left Ventricular Dysfunction",
-        "notes": "Patient is recovering well. Maintain light low-sodium diet. Keep daily log of morning blood pressure and heart rate.",
-        "signature": "S. Jenkins, MD, FACC"
-    }
-]
+prescriptions_db = []
 
-vitals_db = [
-    {"id": "v-1", "timestamp": "2026-07-03T08:00:00Z", "heartRate": 72, "bloodPressureSystolic": 122, "bloodPressureDiastolic": 80, "spo2": 98, "notes": "Feeling fine. Post-breakfast."},
-    {"id": "v-2", "timestamp": "2026-07-02T21:00:00Z", "heartRate": 68, "bloodPressureSystolic": 118, "bloodPressureDiastolic": 76, "spo2": 99, "notes": "Pre-bed reading."},
-    {"id": "v-3", "timestamp": "2026-07-02T08:00:00Z", "heartRate": 74, "bloodPressureSystolic": 124, "bloodPressureDiastolic": 82, "spo2": 97, "notes": "Slight morning headache."}
-]
+vitals_db = []
 
 # --- Endpoints ---
 
