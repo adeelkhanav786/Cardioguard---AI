@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
+import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 import { 
   auth, 
   googleProvider, 
@@ -21,6 +23,11 @@ import {
 interface AuthScreenProps {
   onAuthSuccess: (user: any) => void;
 }
+
+const isNative = Capacitor.isNativePlatform();
+// Reviewer/demo bypass is for testing only — hidden automatically in production builds.
+// Remove this feature entirely before submitting to the Play Store with real users.
+const showReviewerBypass = import.meta.env.DEV;
 
 export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -46,8 +53,18 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      onAuthSuccess(result.user);
+      if (isNative) {
+        // Native Android/iOS: uses the real Google account picker via the OS,
+        // and automatically syncs the result into the Firebase JS SDK's auth state
+        // (skipNativeAuth: false in capacitor.config.ts), so `auth.currentUser`
+        // and onAuthStateChanged in App.tsx keep working unchanged.
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        onAuthSuccess(result.user);
+      } else {
+        // Web: standard Firebase popup flow (unchanged)
+        const result = await signInWithPopup(auth, googleProvider);
+        onAuthSuccess(result.user);
+      }
     } catch (err: any) {
       console.error("Google auth failed:", err);
       setError(`Google Sign-In failed: ${err.message || "Please try again."}. Note: Iframe environments may block popups. If blocked, use our high-fidelity Phone & Reviewer sign-in below!`);
@@ -85,8 +102,8 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     setIsLoading(true);
     setError(null);
 
-    // Bypass/Simulated reviewer check
-    if (phoneNumber.includes("786") || phoneNumber.includes("12345") || phoneNumber === "adeelkhan" || phoneNumber.length < 5) {
+    // Bypass/Simulated reviewer check (dev builds only)
+    if (showReviewerBypass && (phoneNumber.includes("786") || phoneNumber.includes("12345") || phoneNumber === "adeelkhan" || phoneNumber.length < 5)) {
       // Reviewer trigger demo bypass
       setTimeout(() => {
         setOtpSent(true);
@@ -278,9 +295,10 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             </form>
           )}
 
-          {/* Fast-Bypass Section for Admin Reviewers / Iframe Environment Constraints */}
+          {/* Fast-Bypass Section for Admin Reviewers / Iframe Environment Constraints (dev-only) */}
+          {showReviewerBypass && (
           <div className="pt-4 border-t border-slate-100 text-center">
-            <span className="text-[10px] text-slate-400 font-medium block">Reviewer / Iframe Sandbox Fast-Track</span>
+            <span className="text-[10px] text-slate-400 font-medium block">Reviewer / Iframe Sandbox Fast-Track (dev build only)</span>
             <button
               onClick={triggerReviewerBypass}
               disabled={isLoading}
@@ -293,6 +311,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
               Uses the recognized user email <span className="font-bold font-mono">adeelkhanav786@gmail.com</span>, granting full access to Admin Controls immediately.
             </p>
           </div>
+          )}
 
         </div>
 

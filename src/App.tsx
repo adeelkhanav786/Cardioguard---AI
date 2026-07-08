@@ -4,12 +4,14 @@
  */
 
 import React, { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { Medication, VitalSign, Prescription, ChatMessage } from "./types";
 import AndroidFrame from "./components/AndroidFrame";
 import DesktopDashboard from "./components/DesktopDashboard";
 import MedicationManager from "./components/MedicationManager";
 import VitalsTracker from "./components/VitalsTracker";
-import PrescriptionViewer from "./components/PrescriptionViewer.tsx";
+import PrescriptionViewer from "./components/PrescriptionViewer";
 import AiCompanion from "./components/AiCompanion";
 import AuthScreen from "./components/AuthScreen";
 import AdminPanel from "./components/AdminPanel";
@@ -306,6 +308,101 @@ export default function App() {
     localStorage.setItem("cg_notifications_enabled", String(notificationsEnabled));
   }, [notificationsEnabled]);
 
+  // Self-healing daily reset: derive "taken today" from the per-date takenHistory map
+  // instead of trusting the standalone isTakenToday flag, which otherwise never resets
+  // at midnight and would permanently silence reminders/checkmarks after the first dose.
+  useEffect(() => {
+    const reconcileDailyStatus = () => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      setMedications(prev => {
+        let changed = false;
+        const next = prev.map(m => {
+          const actuallyTaken = !!(m.takenHistory && m.takenHistory[todayStr]);
+          if (m.isTakenToday !== actuallyTaken) {
+            changed = true;
+            return { ...m, isTakenToday: actuallyTaken };
+          }
+          return m;
+        });
+        return changed ? next : prev;
+      });
+    };
+    reconcileDailyStatus(); // fix any stale state from a previous session/day immediately
+    const dailyCheckInterval = setInterval(reconcileDailyStatus, 60 * 1000); // catch midnight rollover while app stays open
+    return () => clearInterval(dailyCheckInterval);
+  }, []);
+
+  // Parse "08:00 AM" style time strings into 24-hour { hour, minute }
+  const parseTimeString = (timeStr: string): { hour: number; minute: number } => {
+    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!match) return { hour: 8, minute: 0 };
+    let hour = parseInt(match[1], 10);
+    const minute = parseInt(match[2], 10);
+    const ampm = match[3].toUpperCase();
+    if (ampm === 'PM' && hour !== 12) hour += 12;
+    if (ampm === 'AM' && hour === 12) hour = 0;
+    return { hour, minute };
+  };
+
+  // Stable numeric id required by LocalNotifications, derived from the medication's string id
+  const stableNumericId = (str: string): number => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash) % 2147483647;
+  };
+
+  // Native (Android/iOS) reminders: real OS-scheduled notifications that fire even
+  // if the app is closed/backgrounded — unlike the browser setInterval fallback below.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    (async () => {
+      try {
+        if (!notificationsEnabled) {
+          const pending = await LocalNotifications.getPending();
+          if (pending.notifications.length > 0) {
+            await LocalNotifications.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) });
+          }
+          return;
+        }
+
+        const perm = await LocalNotifications.checkPermissions();
+        if (perm.display !== 'granted') {
+          const req = await LocalNotifications.requestPermissions();
+          if (req.display !== 'granted') {
+            console.warn('Notification permission denied; native medication reminders will not fire.');
+            return;
+          }
+        }
+
+        // Clear and reschedule fresh every time the medication list changes
+        const pending = await LocalNotifications.getPending();
+        if (pending.notifications.length > 0) {
+          await LocalNotifications.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) });
+        }
+
+        if (medications.length > 0) {
+          await LocalNotifications.schedule({
+            notifications: medications.map(med => {
+              const { hour, minute } = parseTimeString(med.time);
+              return {
+                id: stableNumericId(med.id),
+                title: "Medication Reminder ⏰",
+                body: `It's time to take ${med.name} (${med.dosage}).`,
+                schedule: { on: { hour, minute }, allowWhileIdle: true }
+              };
+            })
+          });
+        }
+      } catch (err) {
+        console.error('Failed to schedule native medication reminders:', err);
+      }
+    })();
+  }, [medications, notificationsEnabled]);
+
   const triggerNotificationToast = (med: Medication) => {
     const toastId = "toast-" + Math.random().toString(36).substring(2, 9);
     const newToast = {
@@ -335,9 +432,11 @@ export default function App() {
     }
   };
 
-  // Background monitoring loop to match time for reminders
+  // Background monitoring loop to match time for reminders (web fallback only —
+  // native platforms use the real OS-scheduled LocalNotifications above instead)
   useEffect(() => {
     if (!notificationsEnabled) return;
+    if (Capacitor.isNativePlatform()) return;
 
     const interval = setInterval(() => {
       const now = new Date();

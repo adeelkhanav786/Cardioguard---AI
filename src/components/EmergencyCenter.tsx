@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Medication, VitalSign, Prescription } from "../types";
 import { 
   AlertOctagon, 
@@ -58,6 +58,16 @@ export default function EmergencyCenter({
   // Health summary state
   const [summary, setSummary] = useState<string | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const summaryRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll the newly generated summary into view, since the modal doesn't
+  // scroll on its own and the header/close button would otherwise be pushed
+  // off-screen with no indication anything happened.
+  useEffect(() => {
+    if (summary && summaryRef.current) {
+      summaryRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [summary]);
 
   useEffect(() => {
     if (emergencyConfig) {
@@ -259,10 +269,10 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-red-100 shadow-xl overflow-hidden max-w-2xl mx-auto font-sans">
+    <div className="bg-white rounded-2xl border border-red-100 shadow-xl overflow-hidden max-w-2xl mx-auto font-sans flex flex-col max-h-[85vh] sm:max-h-[90vh]">
       
       {/* Alert Header Banner */}
-      <div className="bg-gradient-to-r from-red-600 to-rose-600 p-6 text-white relative">
+      <div className="bg-gradient-to-r from-red-600 to-rose-600 p-6 text-white relative z-20 shadow-md flex-shrink-0">
         <div className="flex items-center space-x-3">
           <div className="p-2.5 bg-white/15 rounded-xl border border-white/10 animate-pulse">
             <AlertOctagon className="w-6 h-6 text-white" />
@@ -282,7 +292,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
         )}
       </div>
 
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 flex-1 overflow-y-auto">
         
         {/* Simulation Banner Overlay */}
         {simulationMsg && (
@@ -501,7 +511,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
           </div>
 
           {summary && (
-            <div className="bg-white border border-red-100 rounded-xl p-4 space-y-4 shadow-sm">
+            <div ref={summaryRef} className="bg-white border border-red-100 rounded-xl p-4 space-y-4 shadow-sm">
               <div className="border-l-4 border-red-500 pl-3.5 py-1">
                 <span className="text-[10px] text-red-600 font-bold block uppercase tracking-wide">Emergency Clinical Handout</span>
                 <h4 className="text-xs font-black text-slate-900 mt-0.5">Prepared for: {patientName || "John Doe"}</h4>

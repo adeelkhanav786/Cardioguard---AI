@@ -15,7 +15,7 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json({ limit: "15000kb" }));
+app.use(express.json({ limit: "15mb" }));
 
 app.use((req, res, next) => {
   console.log(`[CardioGuard Server] INCOMING REQUEST: ${req.method} ${req.originalUrl}`);
