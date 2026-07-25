@@ -96,33 +96,7 @@ let medications: any[] = [
   }
 ];
 
-let prescriptions = [
-  {
-    id: "rx-101",
-    doctorName: "Dr. Sarah Jenkins",
-    doctorSpecialty: "Cardiologist (Heart Failure Specialist)",
-    date: "2026-06-15",
-    medications: [
-      { name: "Metoprolol Succinate", dosage: "50mg", frequency: "Daily (Morning)", duration: "6 Months" },
-      { name: "Lisinopril", dosage: "10mg", frequency: "Daily (Morning)", duration: "6 Months" }
-    ],
-    diagnosis: "Mild Left Ventricular Dysfunction",
-    notes: "Patient is recovering well. Maintain light low-sodium diet. Keep daily log of morning blood pressure and heart rate.",
-    signature: "S. Jenkins, MD, FACC"
-  },
-  {
-    id: "rx-102",
-    doctorName: "Dr. Raymond Vance",
-    doctorSpecialty: "Lipidologist / Preventive Cardiologist",
-    date: "2026-05-10",
-    medications: [
-      { name: "Atorvastatin", dosage: "20mg", frequency: "Daily (Night)", duration: "1 Year" }
-    ],
-    diagnosis: "Hypercholesterolemia",
-    notes: "Monitor LDL levels. Next fasting lipid profile in 3 months.",
-    signature: "R. Vance, MD"
-  }
-];
+let prescriptions : any[] = [];
 
 // Seed vitals with history over the past week
 let vitals = [

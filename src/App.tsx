@@ -970,7 +970,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
       
       {/* Dynamic Top Navigation Bar / Platform Switcher */}
-      <header className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-red-100 z-50 shadow-sm">
+      <header className="fixed top-0 bg-white/90 backdrop-blur-md border-b border-red-100 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col lg:flex-row justify-between items-center gap-4">
           
           <div className="flex items-center space-x-3">

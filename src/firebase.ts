@@ -5,6 +5,7 @@ import {
   RecaptchaVerifier, 
   signInWithPhoneNumber, 
   signInWithPopup, 
+  signInWithCredential,
   signOut,
   onAuthStateChanged
 } from "firebase/auth";
@@ -31,5 +32,6 @@ export {
   signInWithPhoneNumber, 
   signInWithPopup, 
   signOut,
+  signInWithCredential,
   onAuthStateChanged
 };

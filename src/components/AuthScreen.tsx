@@ -6,8 +6,10 @@ import {
   googleProvider, 
   signInWithPopup, 
   RecaptchaVerifier, 
+  signInWithCredential,
   signInWithPhoneNumber 
 } from "../firebase";
+import { GoogleAuthProvider } from "firebase/auth";
 import { 
   Heart, 
   Sparkles, 
@@ -54,12 +56,22 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     setError(null);
     try {
       if (isNative) {
-        // Native Android/iOS: uses the real Google account picker via the OS,
-        // and automatically syncs the result into the Firebase JS SDK's auth state
-        // (skipNativeAuth: false in capacitor.config.ts), so `auth.currentUser`
-        // and onAuthStateChanged in App.tsx keep working unchanged.
+        // Native Android/iOS: shows the real Google account picker via the OS.
+        // We can't rely on skipNativeAuth's implicit JS-SDK sync (it silently
+        // breaks if the SHA-1 fingerprint/OAuth client isn't set up right), so
+        // we explicitly exchange the native credential for a real JS SDK session.
         const result = await FirebaseAuthentication.signInWithGoogle();
-        onAuthSuccess(result.user);
+        const idToken = result.credential?.idToken;
+        if (idToken) {
+          const credential = GoogleAuthProvider.credential(idToken);
+          const jsResult = await signInWithCredential(auth, credential);
+          onAuthSuccess(jsResult.user);
+        } else {
+          throw new Error(
+            "Signed in, but couldn't establish a saved session (no ID token returned). " +
+            "You'll likely be asked to sign in again next time you open the app."
+          );
+        }
       } else {
         // Web: standard Firebase popup flow (unchanged)
         const result = await signInWithPopup(auth, googleProvider);
