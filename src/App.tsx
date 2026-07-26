@@ -409,7 +409,7 @@ export default function App() {
       id: toastId,
       medication: med,
       title: "Medication Reminder ⏰",
-      message: `It is now ${med.time}. Please take your prescribed dose of ${med.name} (${med.dosage}).`,
+      message: `It's now ${med.time}. Please take your prescribed dose of ${med.name} (${med.dosage}).`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     
