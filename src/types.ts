@@ -15,6 +15,8 @@ export interface Medication {
   remainingPills: number;
   totalPills: number;
   instructions: string;
+  reminderEnabled?: boolean;
+  notificationId?: number;
 }
 
 export interface Prescription {

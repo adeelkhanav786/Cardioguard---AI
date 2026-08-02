@@ -13,8 +13,11 @@ import {
   Tablets,
   CalendarCheck,
   CalendarDays,
-  Sparkles
+  Sparkles,
+  Bell,
+  BellOff
 } from "lucide-react";
+import { notificationService } from "../services/notificationService";
 
 interface MedicationManagerProps {
   medications: Medication[];
@@ -27,8 +30,10 @@ interface MedicationManagerProps {
     category: string;
     totalPills: number;
     instructions: string;
+    reminderEnabled?: boolean;
   }) => Promise<void>;
   onDeleteMedication: (id: string) => Promise<void>;
+  onToggleReminder?: (id: string, enabled: boolean) => Promise<void>;
   compactMode?: boolean;
 }
 
@@ -37,6 +42,7 @@ export default function MedicationManager({
   onToggleTake,
   onAddMedication,
   onDeleteMedication,
+  onToggleReminder,
   compactMode = false
 }: MedicationManagerProps) {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -47,6 +53,7 @@ export default function MedicationManager({
   const [category, setCategory] = useState("Beta-Blocker");
   const [totalPills, setTotalPills] = useState(30);
   const [instructions, setInstructions] = useState("");
+  const [reminderEnabled, setReminderEnabled] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Filter tabs: 'today' | 'week' | 'month'
@@ -58,6 +65,10 @@ export default function MedicationManager({
 
     setIsSubmitting(true);
     try {
+      if (reminderEnabled) {
+        await notificationService.requestPermissions();
+      }
+
       await onAddMedication({
         name,
         dosage,
@@ -65,7 +76,8 @@ export default function MedicationManager({
         frequency,
         category,
         totalPills,
-        instructions
+        instructions,
+        reminderEnabled
       });
       // Reset form
       setName("");
@@ -75,6 +87,7 @@ export default function MedicationManager({
       setCategory("Beta-Blocker");
       setTotalPills(30);
       setInstructions("");
+      setReminderEnabled(true);
       setShowAddForm(false);
     } catch (err) {
       console.error("Failed to add medication", err);
@@ -290,6 +303,22 @@ export default function MedicationManager({
                 className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-red-500"
               />
             </div>
+
+            <div className="col-span-2 flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200">
+              <div className="flex items-center space-x-2">
+                <Bell className="w-4 h-4 text-red-500" />
+                <div>
+                  <span className="text-xs font-bold text-slate-800 block">Daily Reminder Alarm</span>
+                  <span className="text-[9px] text-slate-500 block">Notify on lock screen and desktop at scheduled time</span>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={reminderEnabled}
+                onChange={e => setReminderEnabled(e.target.checked)}
+                className="w-4 h-4 accent-red-600 rounded cursor-pointer"
+              />
+            </div>
           </div>
 
           <button
@@ -371,13 +400,28 @@ export default function MedicationManager({
 
                   {/* Actions & Alerts */}
                   <div className="flex flex-col items-end space-y-2">
-                    <button
-                      onClick={() => onDeleteMedication(med.id)}
-                      className="text-slate-400 hover:text-red-500 p-1 rounded-md transition-colors"
-                      title="Delete medication"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center space-x-1">
+                      {onToggleReminder && (
+                        <button
+                          onClick={() => onToggleReminder(med.id, !(med.reminderEnabled !== false))}
+                          className={`p-1 rounded-md transition-colors ${
+                            med.reminderEnabled !== false 
+                              ? "text-red-500 hover:text-red-600 bg-red-50" 
+                              : "text-slate-300 hover:text-slate-500"
+                          }`}
+                          title={med.reminderEnabled !== false ? "Reminder Active (Click to mute)" : "Reminder Muted (Click to enable)"}
+                        >
+                          {med.reminderEnabled !== false ? <Bell className="w-3.5 h-3.5 fill-red-500/20" /> : <BellOff className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onDeleteMedication(med.id)}
+                        className="text-slate-400 hover:text-red-500 p-1 rounded-md transition-colors"
+                        title="Delete medication"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
                     <div className="text-right">
                       <span className={`text-[9px] block font-mono ${isLowPills ? "text-amber-600 font-extrabold" : "text-slate-500"}`}>

@@ -1,0 +1,63 @@
+# Implementation Plan - Cross-Platform Reminders (Android & Desktop)
+
+Build a complete, reliable, cross-platform Medication & Vital Sign Reminder system for CardioGuard that works seamlessly on **Android** (via Capacitor Local Notifications, firing even when the app is closed) and **Desktop** (via Web Notifications API & In-App Alarms).
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Android Permissions & Notification Channels**: On Android 13+, the app will request runtime permission (`POST_NOTIFICATIONS`) when the user adds their first medication or enables reminders in Settings.
+> **Exact Alarms**: Alarms will use exact alarm scheduling (`USE_EXACT_ALARM`) to ensure timely delivery on Android even when the phone is locked or closed.
+
+## Proposed Changes
+
+### Core Services
+
+#### [NEW] [src/services/notificationService.ts](file:///c:/Users/adeel/OneDrive/Desktop/CARDIOGUARD/src/services/notificationService.ts)
+- Implement unified cross-platform notification engine:
+  - **Android (Native)**: Wraps `@capacitor/local-notifications` to schedule exact repeating daily alarms, configure high-importance channels (`cardioguard_med_alarms`), and attach action buttons (*"Mark as Taken"*, *"Snooze 15m"*).
+  - **Desktop (Web)**: Uses Browser `Notification` API and Web Audio API for desktop notification toasts and in-app sound chime.
+  - **Time Parser**: Parses various time strings (`"08:00 AM"`, `"2:30 PM"`, `"14:00"`, etc.) into exact daily `Date` triggers.
+  - **Sync & Cancel Methods**: `scheduleMedicationReminder`, `cancelMedicationReminder`, `syncAllReminders`, `scheduleRefillReminder`, `triggerTestNotification`.
+  - **Action Listeners**: Listens for lock-screen notification action button clicks on Android.
+
+---
+
+### Data Models & Types
+
+#### [MODIFY] [src/types.ts](file:///c:/Users/adeel/OneDrive/Desktop/CARDIOGUARD/src/types.ts)
+- Extend `Medication` interface with reminder metadata:
+  ```typescript
+  reminderEnabled?: boolean;
+  notificationId?: number;
+  ```
+
+---
+
+### UI Components & Management
+
+#### [MODIFY] [src/components/MedicationManager.tsx](file:///c:/Users/adeel/OneDrive/Desktop/CARDIOGUARD/src/components/MedicationManager.tsx)
+- Add a **Reminder Toggle** (`Bell` icon toggle) on the "Add Medication" form and on individual medication cards.
+- Trigger notification permission request when enabling reminders.
+- Call `notificationService.syncAllReminders` whenever medications are added, edited, toggled, or deleted.
+
+#### [MODIFY] [src/components/SettingsModal.tsx](file:///c:/Users/adeel/OneDrive/Desktop/CARDIOGUARD/src/components/SettingsModal.tsx)
+- Add a **Notification Preferences** section:
+  - Toggle: *Medication Daily Alarms*
+  - Toggle: *Low Refill Alerts (< 5 pills left)*
+  - Button: *Send Test Notification* (Instantly tests Android lock-screen toast or Desktop notification).
+
+#### [MODIFY] [src/App.tsx](file:///c:/Users/adeel/OneDrive/Desktop/CARDIOGUARD/src/App.tsx)
+- On app launch (`useEffect`), initialize Android notification channels (`initNotificationChannels`) and notification action listeners.
+- Automatically sync active medication reminders on initial load.
+- Handle notification action callbacks (e.g., when user taps *"Mark as Taken"* from an Android lock-screen notification, update state in App).
+
+---
+
+## Verification Plan
+
+### Automated Tests / Type Checking
+- Run `npm run lint` (`tsc --noEmit`) to ensure zero TypeScript or build errors.
+
+### Manual Verification
+- **Desktop Browser**: Click "Send Test Notification" in SettingsModal to verify browser permission prompt and notification toast.
+- **Android App**: Test notification scheduling on Android emulator/device to verify notification appears in status bar and lock screen.

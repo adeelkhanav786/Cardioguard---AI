@@ -18,8 +18,10 @@ import {
   User,
   AlertTriangle,
   Stethoscope,
-  Heart
+  Heart,
+  Volume2
 } from "lucide-react";
+import { notificationService } from "../services/notificationService";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -200,10 +202,17 @@ export default function SettingsModal({
             </div>
 
             <div className="border-t border-slate-200/60 pt-3 flex items-center justify-between text-[10px] text-slate-500">
-              <span className="flex items-center space-x-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
-                <span>State saved in persistent client session</span>
-              </span>
+              <button
+                type="button"
+                onClick={async () => {
+                  const sent = await notificationService.triggerTestNotification();
+                  if (sent) setNotificationsEnabled(true);
+                }}
+                className="flex items-center space-x-1.5 bg-red-600 hover:bg-red-500 text-white px-2.5 py-1 rounded-lg font-bold transition-all shadow-sm cursor-pointer"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+                <span>Send Test Notification</span>
+              </button>
               <span className={`font-bold uppercase tracking-wider ${notificationsEnabled ? "text-emerald-600" : "text-slate-400"}`}>
                 {notificationsEnabled ? "Status: Authorized" : "Status: Blocked"}
               </span>

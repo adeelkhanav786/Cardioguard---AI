@@ -52,6 +52,20 @@ import {
   X
 } from "lucide-react";
 
+// Returns the date as YYYY-MM-DD in the USER'S LOCAL timezone (not UTC).
+// `new Date().toISOString()` always returns UTC, which rolls over at
+// 00:00 UTC — e.g. 5:30 AM in India (UTC+5:30) — NOT at the user's own
+// local midnight. Using it for "today" caused taken-medication checkmarks
+// to keep showing as taken for several hours after local midnight instead
+// of resetting right away. This helper fixes that by reading the local
+// year/month/day directly off the Date object.
+const getLocalDateStr = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 export default function App() {
   // Platform mode state: 'desktop' or 'android'
   const [platformMode, setPlatformMode] = useState<'desktop' | 'android'>('desktop');
@@ -313,7 +327,7 @@ export default function App() {
   // at midnight and would permanently silence reminders/checkmarks after the first dose.
   useEffect(() => {
     const reconcileDailyStatus = () => {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getLocalDateStr();
       setMedications(prev => {
         let changed = false;
         const next = prev.map(m => {
@@ -450,7 +464,7 @@ export default function App() {
       const strHours = hours < 10 ? '0' + hours : hours;
       const currentTimeString = `${strHours}:${strMinutes} ${ampm}`;
 
-      const dateString = now.toISOString().split('T')[0];
+      const dateString = getLocalDateStr(now);
 
       medications.forEach(med => {
         if (med.time === currentTimeString && !med.isTakenToday) {
@@ -521,7 +535,7 @@ export default function App() {
     const med = medications.find(m => m.id === id);
     if (!med) return;
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateStr();
     const isTaken = !med.isTakenToday;
     const updatedHistory = { ...med.takenHistory };
     if (isTaken) {

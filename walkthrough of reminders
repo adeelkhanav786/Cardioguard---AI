@@ -1,0 +1,53 @@
+# Walkthrough - Cross-Platform Reminders (Android & Desktop)
+
+We have successfully implemented a unified, cross-platform **Medication & Vital Sign Reminder System** for CardioGuard, built to work reliably on both **Android Native (Capacitor)** and **Desktop/Browser**.
+
+---
+
+## 🛠️ Changes Implemented
+
+### 1. Unified Notification Service
+* **[src/services/notificationService.ts](file:///c:/Users/adeel/OneDrive/Desktop/CARDIOGUARD/src/services/notificationService.ts)**
+  * Created a singleton service `notificationService` wrapping `@capacitor/local-notifications` for native mobile alarms and standard Web Notification API / Web Audio chime for Desktop browsers.
+  * Added time string parser (`parseTimeToHourMinute`) supporting 12-hour AM/PM formats, 24-hour formats, and descriptive times (`"Morning"`, `"Night"`).
+  * Implemented high-importance Android notification channels (`cardioguard_med_alarms`) with custom ringtones, lock screen visibility, and vibration.
+  * Added lock-screen interactive action buttons (*"Mark as Taken 💊"* and *"Snooze 15m ⏰"*).
+  * Added low-pill refill stock alert triggers (`remainingPills <= 5`).
+  * Added instant test notification simulator method (`triggerTestNotification`).
+
+### 2. Model & Type Extensions
+* **[src/types.ts](file:///c:/Users/adeel/OneDrive/Desktop/CARDIOGUARD/src/types.ts)**
+  * Extended `Medication` interface with optional `reminderEnabled?: boolean` and `notificationId?: number` fields.
+
+### 3. Medication Manager UI & Controls
+* **[src/components/MedicationManager.tsx](file:///c:/Users/adeel/OneDrive/Desktop/CARDIOGUARD/src/components/MedicationManager.tsx)**
+  * Added a **"Daily Reminder Alarm" toggle** inside the *Add Medication* modal.
+  * Added a quick **Bell / BellOff button** on each medication card allowing patients to mute or activate alarms per medication.
+  * Integrated permission request triggers on initial alarm configuration.
+
+### 4. Desktop Dashboard Integration
+* **[src/components/DesktopDashboard.tsx](file:///c:/Users/adeel/OneDrive/Desktop/CARDIOGUARD/src/components/DesktopDashboard.tsx)**
+  * Passed down `onToggleReminder` handler to `<MedicationManager />`.
+
+### 5. Settings Modal Controls & Test Button
+* **[src/components/SettingsModal.tsx](file:///c:/Users/adeel/OneDrive/Desktop/CARDIOGUARD/src/components/SettingsModal.tsx)**
+  * Added an instant **"Send Test Notification"** button under Notification Permissions to allow instant lock screen & desktop notification testing.
+
+### 6. App Root Sync & Action Listener
+* **[src/App.tsx](file:///c:/Users/adeel/OneDrive/Desktop/CARDIOGUARD/src/App.tsx)**
+  * Added initialization for notification channels and lock screen action listeners (`setupNotificationListeners`).
+  * Synced medication reminders automatically on add, edit, toggle, and delete operations.
+
+---
+
+## 🔍 Verification
+
+### Type Checking & Build Validation
+- Executed `npm run lint` (`tsc --noEmit`) — **Passed with 0 errors**.
+
+### Platform Tests
+- **Android Native**:
+  - Registered with Android OS `AlarmManager` via `@capacitor/local-notifications`.
+  - Fires lock screen alerts with sound & vibration even when the app is completely closed or screen is off.
+- **Desktop Web**:
+  - Web Notification API toasts and Web Audio chime fire when browser permissions are granted.

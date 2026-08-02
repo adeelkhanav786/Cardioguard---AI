@@ -34,6 +34,7 @@ interface DesktopDashboardProps {
   patientName: string;
   diseases: string;
   allergies: string;
+  onToggleReminder?: (id: string, enabled: boolean) => Promise<void>;
 }
 
 export default function DesktopDashboard({
@@ -50,7 +51,8 @@ export default function DesktopDashboard({
   onSendMessage,
   patientName,
   diseases,
-  allergies
+  allergies,
+  onToggleReminder
 }: DesktopDashboardProps) {
 
   // Calculate daily progress stats
@@ -133,7 +135,7 @@ export default function DesktopDashboard({
       </div>
 
       {/* Bento Grid Core Layout */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-3 gap-6 items-start">
         
         {/* Left Side: Vitals Monitor & History */}
         <div className="col-span-2 space-y-6 flex flex-col">
@@ -156,6 +158,7 @@ export default function DesktopDashboard({
             onToggleTake={onToggleTake}
             onAddMedication={onAddMedication}
             onDeleteMedication={onDeleteMedication}
+            onToggleReminder={onToggleReminder}
           />
 
           <div className="flex-1 min-h-[480px]">
