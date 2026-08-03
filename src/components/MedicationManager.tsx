@@ -118,10 +118,10 @@ export default function MedicationManager({
   const filteredMeds = getFilteredMeds();
 
   return (
-    <div className={`flex-1 flex flex-col ${compactMode ? "p-3 space-y-3 bg-red-50/30" : "p-6 space-y-5 bg-white rounded-2xl border border-red-100 shadow-md shadow-red-100/10"}`}>
+    <div className={`flex-1 flex flex-col min-h-0 ${compactMode ? "p-3 space-y-3 bg-red-50/30" : "p-6 space-y-4 bg-white rounded-2xl border border-red-100 shadow-md shadow-red-100/10"}`}>
       
       {/* Header section with Stats */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-shrink-0">
         <div>
           <h2 className={`${compactMode ? "text-base" : "text-xl"} font-bold text-slate-900 flex items-center space-x-2`}>
             <Tablets className="w-5 h-5 text-red-500" />
@@ -142,7 +142,7 @@ export default function MedicationManager({
       </div>
 
       {/* Compliance Ring Banner */}
-      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
+      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 flex items-center justify-between flex-shrink-0">
         <div className="space-y-1 flex-1">
           <span className="text-[9px] uppercase font-bold tracking-wider text-slate-500">Compliance Rate Today</span>
           <div className="flex items-baseline space-x-1.5">
@@ -166,10 +166,10 @@ export default function MedicationManager({
       </div>
 
       {/* Filter Selector tabs matching UI design from image */}
-      <div className="flex bg-slate-100 border border-slate-200 p-1 rounded-xl">
+      <div className="flex bg-slate-100 border border-slate-200 p-1 rounded-xl flex-shrink-0">
         <button
           onClick={() => setActiveTab('today')}
-          className={`flex-1 flex items-center justify-center space-x-1 py-2 rounded-lg text-[10px] font-bold transition-all ${
+          className={`flex-1 flex items-center justify-center space-x-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
             activeTab === 'today' 
               ? "bg-white text-slate-900 shadow-sm" 
               : "text-slate-500 hover:text-slate-800"
@@ -180,7 +180,7 @@ export default function MedicationManager({
         </button>
         <button
           onClick={() => setActiveTab('week')}
-          className={`flex-1 flex items-center justify-center space-x-1 py-2 rounded-lg text-[10px] font-bold transition-all ${
+          className={`flex-1 flex items-center justify-center space-x-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
             activeTab === 'week' 
               ? "bg-white text-slate-900 shadow-sm" 
               : "text-slate-500 hover:text-slate-800"
@@ -191,7 +191,7 @@ export default function MedicationManager({
         </button>
         <button
           onClick={() => setActiveTab('month')}
-          className={`flex-1 flex items-center justify-center space-x-1 py-2 rounded-lg text-[10px] font-bold transition-all ${
+          className={`flex-1 flex items-center justify-center space-x-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
             activeTab === 'month' 
               ? "bg-white text-slate-900 shadow-sm" 
               : "text-slate-500 hover:text-slate-800"
@@ -204,7 +204,7 @@ export default function MedicationManager({
 
       {/* Add Medication Form Overlay/Expandable */}
       {showAddForm && (
-        <form onSubmit={handleSubmit} className="bg-slate-50 p-4 rounded-xl border border-red-200 space-y-3 animate-fadeIn">
+        <form onSubmit={handleSubmit} className="bg-slate-50 p-4 rounded-xl border border-red-200 space-y-3 animate-fadeIn flex-shrink-0">
           <div className="flex justify-between items-center pb-2 border-b border-slate-200">
             <h3 className="text-xs font-bold text-red-600 uppercase tracking-wider">New Prescribed Medication</h3>
             <button 
@@ -332,7 +332,7 @@ export default function MedicationManager({
       )}
 
       {/* Medication list check items */}
-      <div className="space-y-3 flex-1 overflow-y-auto">
+      <div className="space-y-3 flex-1 min-h-0 overflow-y-auto pr-1">
         {filteredMeds.length === 0 ? (
           <div className="text-center py-8 text-slate-400 space-y-2">
             <Tablets className="w-8 h-8 mx-auto stroke-1 text-slate-400" />

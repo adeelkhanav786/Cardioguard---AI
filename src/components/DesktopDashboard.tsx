@@ -134,25 +134,19 @@ export default function DesktopDashboard({
 
       </div>
 
-      {/* Bento Grid Core Layout */}
-      <div className="grid grid-cols-3 gap-6 items-start">
+      {/* Bento Grid Core Layout - 12-Column Grid (Left: 7 cols, Right: 5 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left Side: Vitals Monitor & History */}
-        <div className="col-span-2 space-y-6 flex flex-col">
+        {/* Upper Left: Vitals Monitor & History (Slightly wider) */}
+        <div className="lg:col-span-7 h-[520px] flex flex-col">
           <VitalsTracker 
             vitals={vitals} 
             onLogVitals={onLogVitals} 
           />
-
-          <PrescriptionViewer
-            prescriptions={prescriptions}
-            onUploadPrescription={onUploadPrescription}
-            onImportMedsFromPrescription={onImportMedsFromPrescription}
-          />
         </div>
 
-        {/* Right Side: Medications & AI chat side panel */}
-        <div className="col-span-1 space-y-6 flex flex-col">
+        {/* Upper Right: Medications & Routine */}
+        <div className="lg:col-span-5 h-[520px] flex flex-col">
           <MedicationManager
             medications={medications}
             onToggleTake={onToggleTake}
@@ -160,13 +154,23 @@ export default function DesktopDashboard({
             onDeleteMedication={onDeleteMedication}
             onToggleReminder={onToggleReminder}
           />
+        </div>
 
-          <div className="flex-1 min-h-[480px]">
-            <AiCompanion
-              messages={chatMessages}
-              onSendMessage={onSendMessage}
-            />
-          </div>
+        {/* Lower Left: Prescription Scanner & Vault (Slightly wider) */}
+        <div className="lg:col-span-7 h-[540px] flex flex-col">
+          <PrescriptionViewer
+            prescriptions={prescriptions}
+            onUploadPrescription={onUploadPrescription}
+            onImportMedsFromPrescription={onImportMedsFromPrescription}
+          />
+        </div>
+
+        {/* Lower Right: Ask CardioGuard AI */}
+        <div className="lg:col-span-5 h-[540px] flex flex-col">
+          <AiCompanion
+            messages={chatMessages}
+            onSendMessage={onSendMessage}
+          />
         </div>
 
       </div>

@@ -213,10 +213,10 @@ export default function PrescriptionViewer({
   const recentScans = [...prescriptions].reverse().slice(0, 4);
 
   return (
-    <div className={`flex-1 flex flex-col ${compactMode ? "p-3 space-y-3 bg-red-50/30" : "p-6 space-y-6 bg-white rounded-2xl border border-red-100 shadow-md shadow-red-100/10"}`}>
+    <div className={`flex-1 flex flex-col min-h-0 ${compactMode ? "p-3 space-y-3 bg-red-50/30" : "p-6 space-y-4 bg-white rounded-2xl border border-red-100 shadow-md shadow-red-100/10"}`}>
       
       {/* Header */}
-      <div>
+      <div className="flex-shrink-0">
         <h2 className={`${compactMode ? "text-base" : "text-xl"} font-bold text-slate-900 flex items-center space-x-2`}>
           <FileText className="w-5 h-5 text-red-500" />
           <span>Prescription Scanner & Vault</span>
@@ -225,7 +225,7 @@ export default function PrescriptionViewer({
       </div>
 
       {/* Main Container Layout */}
-      <div className={`grid ${compactMode ? "grid-cols-1" : "grid-cols-5"} gap-6`}>
+      <div className={`grid ${compactMode ? "grid-cols-1" : "grid-cols-5"} gap-6 flex-1 min-h-0 overflow-y-auto pr-1`}>
         
         {/* Left/Middle Column: Scanner & Recent Scans */}
         <div className={`space-y-6 ${compactMode ? "" : "col-span-3"}`}>

@@ -120,10 +120,10 @@ export default function AiCompanion({ messages, onSendMessage, compactMode = fal
     (lastMessage.content.includes("EMERGENCY") || lastMessage.content.includes("⚠️") || lastMessage.content.includes("911"));
 
   return (
-    <div className={`flex-1 flex flex-col h-full ${compactMode ? "p-3 space-y-3 bg-red-50/30" : "p-6 space-y-4 bg-white rounded-2xl border border-red-100 shadow-md shadow-red-100/10"}`}>
+    <div className={`flex-1 flex flex-col h-full min-h-0 ${compactMode ? "p-3 space-y-3 bg-red-50/30" : "p-6 space-y-4 bg-white rounded-2xl border border-red-100 shadow-md shadow-red-100/10"}`}>
       
       {/* AI Title Banner */}
-      <div className="flex items-center space-x-3 border-b border-slate-200 pb-3">
+      <div className="flex items-center space-x-3 border-b border-slate-200 pb-3 flex-shrink-0">
         <div className="p-2 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl shadow-md shadow-red-500/10">
           <Sparkles className="w-5 h-5 text-white animate-pulse" />
         </div>
@@ -139,7 +139,7 @@ export default function AiCompanion({ messages, onSendMessage, compactMode = fal
       </div>
 
       {/* Warning Card at top */}
-      <div className="bg-red-50/50 p-2.5 rounded-xl border border-red-100/60 flex items-start space-x-2 text-[10px] text-slate-600">
+      <div className="bg-red-50/50 p-2.5 rounded-xl border border-red-100/60 flex items-start space-x-2 text-[10px] text-slate-600 flex-shrink-0">
         <Info className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
         <div>
           <span className="font-bold text-slate-800">Clinical Disclaimer: </span>
@@ -148,7 +148,7 @@ export default function AiCompanion({ messages, onSendMessage, compactMode = fal
       </div>
 
       {/* Messages Thread Container */}
-      <div className="flex-1 bg-slate-50 rounded-xl p-3 border border-slate-100 overflow-y-auto space-y-3.5 min-h-[320px] flex flex-col justify-between">
+      <div className="flex-1 min-h-0 bg-slate-50 rounded-xl p-3 border border-slate-100 overflow-y-auto space-y-3.5 flex flex-col justify-between">
         
         <div className="space-y-4 flex-1">
           {/* Welcome Message */}
@@ -294,7 +294,7 @@ export default function AiCompanion({ messages, onSendMessage, compactMode = fal
       </div>
 
       {/* Input Message Form with Mic and Send Buttons */}
-      <form onSubmit={handleSend} className="flex items-center space-x-2">
+      <form onSubmit={handleSend} className="flex items-center space-x-2 flex-shrink-0 pt-1">
         <div className="relative flex-1">
           <input
             type="text"

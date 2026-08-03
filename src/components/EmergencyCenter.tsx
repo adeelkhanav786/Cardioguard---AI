@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Medication, VitalSign, Prescription } from "../types";
-import { 
-  AlertOctagon, 
-  Phone, 
-  User, 
-  ShieldAlert, 
-  Heart, 
-  FileText, 
-  Download, 
-  Save, 
-  Check, 
+import {
+  AlertOctagon,
+  Phone,
+  User,
+  ShieldAlert,
+  Heart,
+  FileText,
+  Download,
+  Save,
+  Check,
   RefreshCw,
   Globe
 } from "lucide-react";
@@ -99,13 +99,49 @@ export default function EmergencyCenter({
 
   const startSimulation = (type: "emergency" | "family") => {
     if (type === "emergency") {
-      setSimulationMsg(`🚨 SIMULATING OUTGOING SOS CALL TO: ${config.primaryEmergencyNumber}...\nConnecting to Local Emergency Responders... Dispatching Live Telemetry logs.`);
+      const sosNumber = config.primaryEmergencyNumber || "112";
+      setSimulationMsg(`🚨 OUTGOING SOS CALL INITIATED TO: ${sosNumber}\nConnecting to Local Emergency Responders & dispatching live telemetry logs.`);
+
+      // Launch native device phone dialer
+      try {
+        const link = document.createElement("a");
+        link.href = `tel:${sosNumber}`;
+        link.click();
+      } catch (err) {
+        console.log("Native phone dialer launched:", err);
+      }
     } else {
-      setSimulationMsg(`📲 SIMULATING EMERGENCY SMS SENT TO: ${config.trustedName || 'Trusted Contact'} (${config.trustedNumber || 'None'})\n"ALERT: CardioGuard AI detected emergency for ${patientName || 'Patient'}. Directing location & vitals stream: HR ${vitals[0]?.heartRate || 72} BPM, BP ${vitals[0]?.bloodPressureSystolic || 120}/${vitals[0]?.bloodPressureDiastolic || 80} mmHg."`);
+      const trustedName = config.trustedName || 'Trusted Contact';
+      const trustedNumber = config.trustedNumber || '';
+      const smsBody = `ALERT: CardioGuard AI detected cardiac emergency for ${patientName || 'Patient'}. Live Telemetry -> HR: ${vitals[0]?.heartRate || 72} BPM, BP: ${vitals[0]?.bloodPressureSystolic || 120}/${vitals[0]?.bloodPressureDiastolic || 80} mmHg.`;
+
+      setSimulationMsg(`📲 EMERGENCY SMS DISPATCHED TO: ${trustedName} (${trustedNumber || 'None'})\n"${smsBody}"`);
+
+      // Launch native device SMS messenger with cross-platform compatibility
+      if (trustedNumber) {
+        try {
+          const cleanNumber = trustedNumber.replace(/[^\d+]/g, '');
+
+          // iOS Safari/Chrome uses '&' as body separator; Android/PC uses '?'
+          const isIOS = typeof navigator !== 'undefined' && (
+            /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+          );
+          const separator = isIOS ? '&' : '?';
+          const smsUrl = `sms:${cleanNumber}${separator}body=${encodeURIComponent(smsBody)}`;
+
+          // Create temporary link element for cross-mobile browser compatibility
+          const link = document.createElement("a");
+          link.href = smsUrl;
+          link.click();
+        } catch (err) {
+          console.log("Native SMS launcher triggered:", err);
+        }
+      }
     }
     setTimeout(() => {
       setSimulationMsg(null);
-    }, 6000);
+    }, 8000);
   };
 
   const generateHealthSummary = async () => {
@@ -151,11 +187,11 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
 
     try {
       const doc = new jsPDF();
-      
+
       // Page styling - High Polish clinical style
       doc.setFillColor(254, 242, 242); // Soft light red header background
       doc.rect(0, 0, 210, 45, 'F');
-      
+
       doc.setDrawColor(220, 38, 38); // Red separator line
       doc.setLineWidth(1.5);
       doc.line(0, 45, 210, 45);
@@ -165,7 +201,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
       doc.setFontSize(22);
       doc.setTextColor(185, 28, 28); // Deep red text
       doc.text("CARDIOVASCULAR MEDICAL BRIEF", 15, 20);
-      
+
       doc.setFont("Helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(127, 29, 29);
@@ -177,7 +213,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
       doc.setFontSize(11);
       doc.setTextColor(31, 41, 55); // Dark text
       doc.text("PATIENT DEMOGRAPHICS", 15, 60);
-      
+
       doc.setFont("Helvetica", "normal");
       doc.setFontSize(10);
       doc.text(`Full Name: ${patientName || "John Doe"}`, 15, 66);
@@ -207,7 +243,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
       doc.setFont("Helvetica", "bold");
       doc.text("CURRENT OUTPATIENT THERAPEUTICS", 15, 104);
       doc.setFont("Helvetica", "normal");
-      
+
       let medY = 110;
       if (medications && medications.length > 0) {
         medications.forEach((med, i) => {
@@ -224,7 +260,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
       doc.setFont("Helvetica", "bold");
       doc.text("OFFICIAL DIAGNOSES & CLINICAL DIRECTIVES", 115, 104);
       doc.setFont("Helvetica", "normal");
-      
+
       let rxY = 110;
       if (prescriptions && prescriptions.length > 0) {
         prescriptions.slice(0, 2).forEach((p, i) => {
@@ -244,7 +280,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
       doc.setFontSize(12);
       doc.setTextColor(185, 28, 28);
       doc.text("EMERGENCY MEDICAL BRIEF (AI-GENERATED SUMMARISED REPORT)", 15, 152);
-      
+
       doc.setFont("Helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(55, 65, 81);
@@ -270,7 +306,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
 
   return (
     <div className="bg-white rounded-2xl border border-red-100 shadow-xl overflow-hidden max-w-2xl mx-auto font-sans flex flex-col max-h-[85vh] sm:max-h-[90vh]">
-      
+
       {/* Alert Header Banner */}
       <div className="bg-gradient-to-r from-red-600 to-rose-600 p-6 text-white relative z-20 shadow-md flex-shrink-0">
         <div className="flex items-center space-x-3">
@@ -283,7 +319,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
           </div>
         </div>
         {onClose && (
-          <button 
+          <button
             onClick={onClose}
             className="absolute top-4 right-4 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1 rounded-lg text-xs font-bold transition-all"
           >
@@ -293,7 +329,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
       </div>
 
       <div className="p-6 space-y-6 flex-1 overflow-y-auto">
-        
+
         {/* Simulation Banner Overlay */}
         {simulationMsg && (
           <div className="bg-red-950 text-red-200 p-4 rounded-xl font-mono text-xs animate-pulse leading-relaxed border border-red-800 shadow-inner flex items-start space-x-2.5">
@@ -312,7 +348,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
 
         {/* SOS Action Toggles */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
+
           <div className="bg-red-50/50 rounded-xl p-4 border border-red-100 flex flex-col justify-between space-y-4">
             <div>
               <div className="flex items-center space-x-2">
@@ -326,7 +362,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
                 {config.primaryEmergencyNumber}
               </div>
             </div>
-            
+
             <button
               onClick={() => startSimulation("emergency")}
               className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-lg text-xs transition-all shadow-md shadow-red-600/10 active:scale-95"
@@ -354,7 +390,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
                 )}
               </div>
             </div>
-            
+
             <button
               onClick={() => startSimulation("family")}
               disabled={!config.trustedNumber}
@@ -490,7 +526,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
                 Generates a summarized clinical brief of all active medications, vital trends, and emergency precautions for quick doctor reference.
               </p>
             </div>
-            
+
             <button
               onClick={generateHealthSummary}
               disabled={isGeneratingSummary}
@@ -516,7 +552,7 @@ ALERT: Please crosscheck drug interactions. Maintain cardiovascular support.`);
                 <span className="text-[10px] text-red-600 font-bold block uppercase tracking-wide">Emergency Clinical Handout</span>
                 <h4 className="text-xs font-black text-slate-900 mt-0.5">Prepared for: {patientName || "John Doe"}</h4>
               </div>
-              
+
               <div className="text-xs text-slate-700 font-mono leading-relaxed whitespace-pre-wrap bg-slate-50 p-3.5 rounded-lg border border-slate-100 select-all max-h-[220px] overflow-y-auto">
                 {summary}
               </div>

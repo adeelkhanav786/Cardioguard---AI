@@ -68,7 +68,7 @@ export default function VitalsTracker({ vitals, onLogVitals, compactMode = false
   // Generate the ECG wave path in real-time
   useEffect(() => {
     const ecgPattern = [
-      0, 0, 0, 0, 0, 0, 2, 4, 2, 0, 0, -2, 18, -6, 0, 2, 4, 2, 0, 0, 0, 0, 0, 0, 0
+      0, 0, 0, 0, 0, 0, 1.5, 3, 1.5, 0, 0, -2, 20, -7, 0, 1.5, 3, 1.5, 0, 0, 0, 0, 0, 0, 0
     ];
     
     let active = true;
@@ -77,17 +77,18 @@ export default function VitalsTracker({ vitals, onLogVitals, compactMode = false
       
       setEcgData(prev => {
         const nextIdx = countRef.current % ecgPattern.length;
-        const nextVal = ecgPattern[nextIdx] + (Math.random() * 0.5 - 0.25);
+        const nextVal = ecgPattern[nextIdx] + (Math.random() * 0.4 - 0.2);
         countRef.current++;
         
+        const maxPoints = compactMode ? 50 : 120;
         const updated = [...prev, nextVal];
-        if (updated.length > (compactMode ? 40 : 80)) {
+        if (updated.length > maxPoints) {
           updated.shift();
         }
         return updated;
       });
 
-      const delay = Math.max(30, 100 - (latestVital.heartRate - 60) * 0.5);
+      const delay = Math.max(25, 90 - (latestVital.heartRate - 60) * 0.4);
       setTimeout(() => {
         animationRef.current = requestAnimationFrame(runAnimation);
       }, delay);
@@ -103,13 +104,15 @@ export default function VitalsTracker({ vitals, onLogVitals, compactMode = false
 
   const drawEcgPath = () => {
     if (ecgData.length === 0) return "";
-    const spacing = compactMode ? 8 : 6;
-    const midY = 40;
+    const totalPoints = compactMode ? 50 : 120;
+    const viewBoxWidth = compactMode ? 350 : 600;
+    const spacing = viewBoxWidth / totalPoints;
+    const midY = 45;
     
     return ecgData.reduce((path, val, idx) => {
       const x = idx * spacing;
-      const y = midY - val * 2.2;
-      return path + `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+      const y = midY - val * 2.4;
+      return path + `${idx === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
     }, "");
   };
 
@@ -154,10 +157,10 @@ export default function VitalsTracker({ vitals, onLogVitals, compactMode = false
   const weightDiff = Number((currentWeight - previousWeight).toFixed(1));
 
   return (
-    <div className={`flex-1 flex flex-col ${compactMode ? "p-3 space-y-3 bg-red-50/30" : "p-6 space-y-6 bg-white rounded-2xl border border-red-100 shadow-md shadow-red-100/10"}`}>
+    <div className={`flex-1 flex flex-col min-h-0 overflow-y-auto ${compactMode ? "p-3 space-y-3 bg-red-50/30" : "p-6 space-y-4 bg-white rounded-2xl border border-red-100 shadow-md shadow-red-100/10"}`}>
       
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-shrink-0">
         <div>
           <h2 className={`${compactMode ? "text-base" : "text-xl"} font-bold text-slate-900 flex items-center space-x-2`}>
             <Activity className="w-5 h-5 text-red-500" />
@@ -178,32 +181,32 @@ export default function VitalsTracker({ vitals, onLogVitals, compactMode = false
       </div>
 
       {/* Real-time ECG Graph Board */}
-      <div className="bg-red-50/50 rounded-xl p-3 border border-red-100 overflow-hidden relative">
+      <div className="bg-slate-900 rounded-xl p-3.5 border border-slate-800 overflow-hidden relative flex-shrink-0 shadow-inner">
         <div className="absolute top-2.5 left-3 flex items-center space-x-1.5 z-10">
-          <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></span>
-          <span className="text-[9px] uppercase font-bold tracking-wider text-red-600">Live ECG Waveform</span>
+          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+          <span className="text-[9px] uppercase font-mono font-bold tracking-wider text-emerald-400">Live ECG Monitor • Telemetry Active</span>
         </div>
 
         {/* Floating Heart Rate indicator */}
-        <div className="absolute top-2 right-3 flex items-center space-x-1 bg-white border border-red-100 px-2 py-0.5 rounded-md text-red-600 font-mono text-xs font-semibold z-10">
-          <Heart className="w-3 h-3 animate-pulse text-red-500" />
+        <div className="absolute top-2 right-3 flex items-center space-x-1.5 bg-slate-800/90 border border-slate-700/80 px-2.5 py-1 rounded-lg text-red-400 font-mono text-xs font-bold z-10 shadow">
+          <Heart className="w-3.5 h-3.5 animate-pulse text-red-500 fill-red-500/30" />
           <span>{latestVital.heartRate} BPM</span>
         </div>
 
         {/* SVG ECG oscilloscope lines */}
-        <div className="h-20 w-full relative mt-3 overflow-hidden">
+        <div className="h-24 w-full relative mt-4 overflow-hidden">
           {/* Oscilloscope Grid background */}
-          <div className="absolute inset-0 opacity-10 bg-[linear-gradient(to_right,#ef4444_1px,transparent_1px),linear-gradient(to_bottom,#ef4444_1px,transparent_1px)] bg-[size:16px_16px]"></div>
+          <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,#ef4444_1px,transparent_1px),linear-gradient(to_bottom,#ef4444_1px,transparent_1px)] bg-[size:16px_16px]"></div>
           
-          <svg className="w-full h-full" viewBox={`0 0 ${compactMode ? 320 : 480} 80`} preserveAspectRatio="none">
+          <svg className="w-full h-full" viewBox={`0 0 ${compactMode ? 350 : 600} 90`} preserveAspectRatio="none">
             <path
               d={drawEcgPath()}
               fill="none"
               stroke="#ef4444"
-              strokeWidth={2}
+              strokeWidth={2.5}
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="drop-shadow-[0_0_4px_rgba(239,68,68,0.5)]"
+              className="drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]"
             />
           </svg>
         </div>
