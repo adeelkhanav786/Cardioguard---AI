@@ -197,8 +197,13 @@ export default function App() {
               getDocs(collection(db, "users", currentUser.uid, "chatMessages"))
             ]);
 
+            const todayStr = getLocalDateStr();
             const loadedMeds: any[] = [];
-            medsSnap.forEach(doc => loadedMeds.push(doc.data()));
+            medsSnap.forEach(doc => {
+              const data = doc.data();
+              const isTakenToday = !!(data.takenHistory && data.takenHistory[todayStr]);
+              loadedMeds.push({ ...data, isTakenToday });
+            });
             setMedications(loadedMeds);
 
             const loadedVitals: any[] = [];
@@ -232,6 +237,7 @@ export default function App() {
           console.warn("Firestore loading error. Attempting LocalStorage restore...", err);
           setIsOfflineMode(true);
 
+          const todayStr = getLocalDateStr();
           // Try loading from LocalStorage for this specific user
           const cachedMeds = localStorage.getItem(`cg_meds_${currentUser.uid}`);
           const cachedVitals = localStorage.getItem(`cg_vitals_${currentUser.uid}`);
@@ -243,7 +249,12 @@ export default function App() {
           const cachedMsgs = localStorage.getItem(`cg_messages_${currentUser.uid}`);
 
           if (cachedMeds && cachedVitals && cachedPrescriptions) {
-            setMedications(JSON.parse(cachedMeds));
+            const parsedMeds: any[] = JSON.parse(cachedMeds);
+            const normalizedMeds = parsedMeds.map(m => ({
+              ...m,
+              isTakenToday: !!(m.takenHistory && m.takenHistory[todayStr])
+            }));
+            setMedications(normalizedMeds);
             setVitals(JSON.parse(cachedVitals));
             setPrescriptions(JSON.parse(cachedPrescriptions));
             if (cachedConfig) setEmergencyConfig(JSON.parse(cachedConfig));
@@ -254,7 +265,11 @@ export default function App() {
             console.log("Successfully restored user state from local offline cache.");
           } else {
             console.log("No local cache found. Seeding defaults locally.");
-            setMedications(medicationslist as any);
+            const normalizedDefaults = (medicationslist as any[]).map(m => ({
+              ...m,
+              isTakenToday: !!(m.takenHistory && m.takenHistory[todayStr])
+            }));
+            setMedications(normalizedDefaults);
             setVitals(vitalsList as any);
             setPrescriptions(prescriptionList as any);
             const defaultConfig = {
