@@ -1,20 +1,15 @@
-<div align ="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
-
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/8e4bcc11-bdee-4674-bece-3079c36725f7
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Team Name - Zero Expectations  
+Project Name - Cardioguard Ai   
+Track Name - open source(Healthcare)  
+Team leader name - Laher Kashyap, Contact - 6387519598  
+Team member Details --
+1. Laher Kashyap - Frontend  
+   Contact - 6387519598
+2. Arif Ansari - UI\UX designer  
+  Contact - 9555732753
+3. Ashar Abbas - Backend  
+   Contact - 8299462294
+4. Muskan Srivastav - Frontend  
+   Contact - 6393871034
+7. Mohd. Adeel Khan - Backend  
+   Contact - 8953306694
