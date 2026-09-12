@@ -143,7 +143,7 @@ export default function AiCompanion({ messages, onSendMessage, compactMode = fal
         <Info className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
         <div>
           <span className="font-bold text-slate-800">Clinical Disclaimer: </span>
-          Retrieves active health history from vector DB combined with DDInter/OpenFDA. Always verify therapeutic routines with Dr. Jenkins.
+          Retrieves active health history from vector DB combined with DDInter/OpenFDA. Always verify therapeutic routines with your doctor.
         </div>
       </div>
 

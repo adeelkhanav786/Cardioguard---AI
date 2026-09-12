@@ -10,6 +10,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
+
 dotenv.config();
 
 const app = express();
@@ -29,86 +30,19 @@ let aiClient: GoogleGenAI | null = null;
 function getAiClient(): GoogleGenAI | null {
   if (!aiClient && apiKey) {
     aiClient = new GoogleGenAI({
-      apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
     });
   }
   return aiClient;
 }
 
-// In-memory data structures (seeded with realistic heart patient data)
-let medications: any[] = [
-  {
-    id: "med-1",
-    name: "Metoprolol Succinate",
-    dosage: "50mg",
-    time: "08:00 AM",
-    frequency: "Daily",
-    category: "Beta-Blocker",
-    isTakenToday: false,
-    takenHistory: { "2026-07-02": true, "2026-07-01": true },
-    remainingPills: 24,
-    totalPills: 30,
-    instructions: "Take with or immediately after a meal. Do not crush."
-  },
-  {
-    id: "med-2",
-    name: "Lisinopril",
-    dosage: "10mg",
-    time: "08:00 AM",
-    frequency: "Daily",
-    category: "ACE-Inhibitor",
-    isTakenToday: false,
-    takenHistory: { "2026-07-02": true, "2026-07-01": false },
-    remainingPills: 12,
-    totalPills: 30,
-    instructions: "Take at the same time every morning. Can be taken with or without food."
-  },
-  {
-    id: "med-3",
-    name: "Atorvastatin (Lipitor)",
-    dosage: "20mg",
-    time: "09:00 PM",
-    frequency: "Daily",
-    category: "Statin",
-    isTakenToday: false,
-    takenHistory: { "2026-07-02": true, "2026-07-01": true },
-    remainingPills: 18,
-    totalPills: 30,
-    instructions: "Take in the evening. Avoid excessive grapefruit juice consumption."
-  },
-  {
-    id: "med-4",
-    name: "Baby Aspirin",
-    dosage: "81mg",
-    time: "12:00 PM",
-    frequency: "Daily",
-    category: "Blood-Thinner",
-    isTakenToday: false,
-    takenHistory: { "2026-07-02": true, "2026-07-01": true },
-    remainingPills: 85,
-    totalPills: 100,
-    instructions: "Take with food to prevent stomach irritation."
-  }
-];
 
-let prescriptions : any[] = [];
 
-// Seed vitals with history over the past week
-let vitals = [
-  { id: "v-1", timestamp: "2026-07-03T08:00:00Z", heartRate: 72, bloodPressureSystolic: 122, bloodPressureDiastolic: 80, spo2: 98, weight: 70, notes: "Feeling fine. Post-breakfast." },
-  { id: "v-2", timestamp: "2026-07-02T21:00:00Z", heartRate: 68, bloodPressureSystolic: 118, bloodPressureDiastolic: 76, spo2: 99, weight: 70.2, notes: "Pre-bed reading." },
-  { id: "v-3", timestamp: "2026-07-02T08:00:00Z", heartRate: 74, bloodPressureSystolic: 124, bloodPressureDiastolic: 82, spo2: 97, weight: 69.8, notes: "Slight morning headache." },
-  { id: "v-4", timestamp: "2026-07-01T21:00:00Z", heartRate: 65, bloodPressureSystolic: 119, bloodPressureDiastolic: 78, spo2: 98, weight: 70.5 },
-  { id: "v-5", timestamp: "2026-07-01T08:00:00Z", heartRate: 71, bloodPressureSystolic: 121, bloodPressureDiastolic: 80, spo2: 98, weight: 70.3 },
-  { id: "v-6", timestamp: "2026-06-30T08:00:00Z", heartRate: 75, bloodPressureSystolic: 126, bloodPressureDiastolic: 83, spo2: 97, weight: 71.2 }
-];
 
 // --- API ENDPOINTS ---
+let medications: any[] = [];
+let prescriptions: any[] = [];
+let vitals: any[] = [];
+
 
 // GET Medications
 app.get("/api/medications", (req, res) => {
@@ -120,15 +54,15 @@ app.post("/api/medications", (req, res) => {
   const newMed = {
     id: "med-" + Math.random().toString(36).substring(2, 9),
     name: req.body.name || "Unnamed Medication",
-    dosage: req.body.dosage || "1 pill",
-    time: req.body.time || "08:00 AM",
-    frequency: req.body.frequency || "Daily",
-    category: req.body.category || "Other",
+    dosage: req.body.dosage || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.dosage ||"",
+    time: req.body.time || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.time ||"",
+    frequency: req.body.frequency || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.frequency || "Daily",
+    category: req.body.category || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.category || "Other",
     isTakenToday: false,
     takenHistory: {},
-    remainingPills: req.body.totalPills || 30,
-    totalPills: req.body.totalPills || 30,
-    instructions: req.body.instructions || ""
+    remainingPills: req.body.totalPills || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.totalPills || 30,
+    totalPills: req.body.totalPills || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.totalPills || 30,
+    instructions: req.body.instructions || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.instructions || ""
   };
   medications.push(newMed);
   res.status(201).json(newMed);
@@ -278,8 +212,8 @@ Provide your response strictly in the following JSON format:
 }
 `;
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: `Perform safety check for new medicine: "${newMedicine}" against current list: [${medsList}]`,
+      model: "gemini-3.8-flash",
+      contents: `Perform safety check for new medicine: "${newMedicine}" against current list: [${medsList} and also provide help in common health related issues and others.]`,
       config: {
         systemInstruction,
         responseMimeType: "application/json",
@@ -324,7 +258,7 @@ app.post("/api/gemini/chat", async (req, res) => {
         
       if (lastUserMsg.toLowerCase().includes("pain") || lastUserMsg.toLowerCase().includes("chest")) {
         fallbackText = "⚠️ **IMMEDIATE CARDIOVASCULAR EMERGENCY WARNING** ⚠️\n\n" +
-          "You mentioned chest pain or discomfort. Chest pain, heavy pressure, or radiating tightness to your shoulder, arm, back, neck, or jaw is a secondary sign of acute cardiac events.\n\n" +
+          "As your heart health assistant, if you are experiencing chest pain or discomfort. Chest pain, heavy pressure, or radiating tightness to your shoulder, arm, back, neck, or jaw is a secondary sign of acute cardiac events.\n\n" +
           "**ACTION REQUIRED:** Please IMMEDIATELY stop using this app and call 911 or your local emergency response services. Do not drive yourself to the ER; wait for professional medical rescue services.\n\n" +
           "*This is an automated safety warning from CardioGuard AI.*";
       }
@@ -341,12 +275,13 @@ app.post("/api/gemini/chat", async (req, res) => {
     const systemInstruction = `You are CardioGuard AI, an empathetic, highly knowledgeable virtual cardiovascular nurse assisting heart disease patients with daily care. You help patients track their medication schedules, explain prescription notes, offer healthy cardiovascular recipes, and provide guidance on heart-healthy exercises.
 
 IMPORTANT RULES:
-1. Always include a short, gentle professional disclaimer at the very end of your response that your guidance is for informational and organizational support only, and that the patient should consult their primary cardiologist for any actual medical changes or clinical symptoms.
+1. Always include a short, gentle professional disclaimer at the very end of your response that your guidance is for informational and organizational support only, and that the patient should consult their primary cardiologist for any actual medical changes or clinical symptoms
+ if the question is asked in a different language reply in that language only like hindi, hinglish or etc.
 2. Do NOT diagnose acute clinical emergencies. If the patient describes severe symptoms like chest pain radiating to the shoulder or arm, severe shortness of breath, sudden numbness, or fainting, URGE them immediately to seek emergency medical attention (call 911/emergency services) and stop using the chat.
 3. Be warm, calming, supportive, and clear. Avoid jargon where possible. Refer back to the patient's prescribed medications (Metoprolol, Lisinopril, Lipitor, Baby Aspirin) if they ask about heart medicine routines.`;
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.8-flash",
       contents: formattedContents,
       config: {
         systemInstruction,
@@ -482,9 +417,9 @@ Respond strictly in this JSON format and nothing else:
   "medications": [
     {
       "name": "medicine name exactly as written, expand abbreviations where confident (e.g. 'Metoprolol Succ' -> 'Metoprolol Succinate')",
-      "dosage": "e.g. '50mg', '5ml', '1 tablet'",
-      "frequency": "e.g. 'Twice Daily', 'Once at night', 'Every 8 hours'",
-      "duration": "e.g. '7 Days', '3 Months', 'Ongoing'"
+      "dosage": "e.g. '50mg', '5ml', '1 tablet', the above string is example give the dosage as it is written in prescription slip",
+      "frequency": "e.g. 'Twice Daily', 'Once at night', 'Every 8 hours', the above string is example give the frequency as it is written in prescription slip",
+      "duration": "e.g. '7 Days', '3 Months', 'Ongoing', the above string is example give the duration as it is written in prescription slip"
     }
   ]
 }

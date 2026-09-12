@@ -85,19 +85,6 @@ export default function DesktopDashboard({
           </div>
         </div>
 
-        {/* Primary Cardiology Doctor */}
-        <div className="col-span-1 bg-white border border-red-100 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
-          <div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Lead Cardiologist</span>
-            <h3 className="text-sm font-bold text-slate-900 mt-1">Dr. Sarah Jenkins</h3>
-            <p className="text-xs text-red-600 mt-0.5">Saint Jude Heart Center</p>
-          </div>
-          <div className="flex items-center space-x-1.5 text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-100 p-1.5 rounded-lg">
-            <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600" />
-            <span>Next Appointment: July 15</span>
-          </div>
-        </div>
-
         {/* Medication Compliance Goal */}
         <div className="col-span-1 bg-white border border-red-100 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
           <div>

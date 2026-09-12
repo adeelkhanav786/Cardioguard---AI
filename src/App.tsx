@@ -18,6 +18,12 @@ import AdminPanel from "./components/AdminPanel";
 import EmergencyCenter from "./components/EmergencyCenter";
 import SettingsModal from "./components/SettingsModal";
 import { 
+  notificationService, 
+  calculateDailyDoseTimes, 
+  extractAllTimeSlots, 
+  parseTimeToHourMinute 
+} from "./services/notificationService";
+import { 
   auth, 
   db, 
   onAuthStateChanged, 
@@ -109,6 +115,19 @@ export default function App() {
   const vitalsList = [];
 
   const prescriptionList = [];
+
+  // Notification Channel Initialization & Permission Request
+  useEffect(() => {
+    notificationService.initNotificationChannels();
+    notificationService.requestPermissions();
+  }, []);
+
+  // Synchronize native scheduled alarms whenever medications change
+  useEffect(() => {
+    if (medications && medications.length > 0) {
+      notificationService.syncAllReminders(medications);
+    }
+  }, [medications]);
 
   // Auth State Listener
   useEffect(() => {
@@ -361,84 +380,33 @@ export default function App() {
     return () => clearInterval(dailyCheckInterval);
   }, []);
 
-  // Parse "08:00 AM" style time strings into 24-hour { hour, minute }
-  const parseTimeString = (timeStr: string): { hour: number; minute: number } => {
-    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (!match) return { hour: 8, minute: 0 };
-    let hour = parseInt(match[1], 10);
-    const minute = parseInt(match[2], 10);
-    const ampm = match[3].toUpperCase();
-    if (ampm === 'PM' && hour !== 12) hour += 12;
-    if (ampm === 'AM' && hour === 12) hour = 0;
-    return { hour, minute };
-  };
-
-  // Stable numeric id required by LocalNotifications, derived from the medication's string id
-  const stableNumericId = (str: string): number => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash) % 2147483647;
-  };
-
-  // Native (Android/iOS) reminders: real OS-scheduled notifications that fire even
-  // if the app is closed/backgrounded — unlike the browser setInterval fallback below.
+  // Native (Android/iOS) reminders: synchronized via centralized notificationService
+  // with multi-slot (e.g. 10:00 AM & 10:00 PM), repeats, and high-priority alarms.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
-    (async () => {
-      try {
-        if (!notificationsEnabled) {
-          const pending = await LocalNotifications.getPending();
-          if (pending.notifications.length > 0) {
-            await LocalNotifications.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) });
-          }
-          return;
-        }
-
-        const perm = await LocalNotifications.checkPermissions();
-        if (perm.display !== 'granted') {
-          const req = await LocalNotifications.requestPermissions();
-          if (req.display !== 'granted') {
-            console.warn('Notification permission denied; native medication reminders will not fire.');
-            return;
-          }
-        }
-
-        // Clear and reschedule fresh every time the medication list changes
-        const pending = await LocalNotifications.getPending();
+    if (!notificationsEnabled) {
+      LocalNotifications.getPending().then(pending => {
         if (pending.notifications.length > 0) {
-          await LocalNotifications.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) });
+          LocalNotifications.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) });
         }
+      }).catch(err => console.warn("Error cancelling notifications:", err));
+      return;
+    }
 
-        if (medications.length > 0) {
-          await LocalNotifications.schedule({
-            notifications: medications.map(med => {
-              const { hour, minute } = parseTimeString(med.time);
-              return {
-                id: stableNumericId(med.id),
-                title: "Medication Reminder ⏰",
-                body: `It's time to take ${med.name} (${med.dosage}).`,
-                schedule: { on: { hour, minute }, allowWhileIdle: true }
-              };
-            })
-          });
-        }
-      } catch (err) {
-        console.error('Failed to schedule native medication reminders:', err);
-      }
-    })();
+    notificationService.syncAllReminders(medications).catch(err => {
+      console.error("Failed to sync native medication reminders:", err);
+    });
   }, [medications, notificationsEnabled]);
 
-  const triggerNotificationToast = (med: Medication) => {
+  const triggerNotificationToast = (med: Medication, specificDoseTime?: string) => {
     const toastId = "toast-" + Math.random().toString(36).substring(2, 9);
+    const displayTime = specificDoseTime || med.time;
     const newToast = {
       id: toastId,
       medication: med,
       title: "Medication Reminder ⏰",
-      message: `It is now ${med.time}. Please take your prescribed dose of ${med.name} (${med.dosage}).`,
+      message: `It is now ${displayTime}. Please take your prescribed dose of ${med.name} (${med.dosage}).`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     
@@ -482,15 +450,21 @@ export default function App() {
       const dateString = getLocalDateStr(now);
 
       medications.forEach(med => {
-        if (med.time === currentTimeString && !med.isTakenToday) {
-          const notificationKey = `notified_${med.id}_${dateString}_${currentTimeString}`;
-          const alreadyNotified = sessionStorage.getItem(notificationKey);
-          
-          if (!alreadyNotified) {
-            sessionStorage.setItem(notificationKey, "true");
-            triggerNotificationToast(med);
+        if (med.reminderEnabled === false) return;
+
+        // Support both single time and multi-dose intervals (e.g. "10:00 AM, 10:00 PM")
+        const slots = extractAllTimeSlots(med.time);
+        slots.forEach((slotTime, idx) => {
+          if (slotTime === currentTimeString) {
+            const notificationKey = `notified_${med.id}_slot${idx}_${dateString}_${currentTimeString}`;
+            const alreadyNotified = sessionStorage.getItem(notificationKey);
+            
+            if (!alreadyNotified) {
+              sessionStorage.setItem(notificationKey, "true");
+              triggerNotificationToast(med, slotTime);
+            }
           }
-        }
+        });
       });
     }, 5000); // Poll clock every 5 seconds
 
@@ -579,6 +553,14 @@ export default function App() {
     }
   };
 
+  // Register interactive notification action listeners
+  useEffect(() => {
+    notificationService.setupNotificationListeners(
+      (medId) => handleToggleTakeMedication(medId),
+      (medId) => console.log("Snoozed medication alarm for ID:", medId)
+    );
+  }, [medications]);
+
   // Add Medication routine
   const handleAddMedication = async (newMed: {
     name: string;
@@ -588,23 +570,30 @@ export default function App() {
     category: string;
     totalPills: number;
     instructions: string;
+    reminderEnabled?: boolean;
   }) => {
+    const resolvedTime = (newMed.time && newMed.time.trim() !== "")
+      ? extractAllTimeSlots(newMed.time).join(", ")
+      : calculateDailyDoseTimes(newMed.frequency, newMed.dosage);
+
     const fallbackMed: Medication = {
       id: "med-" + Math.random().toString(36).substring(2, 9),
       name: newMed.name,
       dosage: newMed.dosage,
-      time: newMed.time,
+      time: resolvedTime,
       frequency: newMed.frequency,
       category: newMed.category as any,
       isTakenToday: false,
       takenHistory: {},
       remainingPills: newMed.totalPills,
       totalPills: newMed.totalPills,
-      instructions: newMed.instructions
+      instructions: newMed.instructions,
+      reminderEnabled: newMed.reminderEnabled !== false
     };
 
     const nextMeds = [...medications, fallbackMed];
     setMedications(nextMeds);
+    await notificationService.scheduleMedicationReminder(fallbackMed);
 
     if (user) {
       localStorage.setItem(`cg_meds_${user.uid}`, JSON.stringify(nextMeds));
@@ -620,6 +609,7 @@ export default function App() {
   const handleDeleteMedication = async (id: string) => {
     const nextMeds = medications.filter(m => m.id !== id);
     setMedications(nextMeds);
+    await notificationService.cancelMedicationReminder(id);
 
     if (user) {
       localStorage.setItem(`cg_meds_${user.uid}`, JSON.stringify(nextMeds));
@@ -700,14 +690,15 @@ export default function App() {
     }
   };
 
-  // Auto-sync medications imported from scan
+  // Auto-sync medications imported from scan with intelligent 24h dose-divided timings
   const handleImportMedsFromPrescription = (meds: { name: string; dosage: string; frequency: string; instructions: string }[]) => {
     meds.forEach(m => {
+      const calculatedTiming = calculateDailyDoseTimes(m.frequency, m.dosage);
       handleAddMedication({
         name: m.name,
         dosage: m.dosage,
-        time: "08:00 AM",
-        frequency: m.frequency,
+        time: calculatedTiming,
+        frequency: m.frequency || "Daily",
         category: "Other",
         totalPills: 30,
         instructions: m.instructions
