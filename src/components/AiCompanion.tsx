@@ -271,7 +271,7 @@ export default function AiCompanion({ messages, onSendMessage, compactMode = fal
 
           {/* Emergency Red Flashing Card */}
           {containsEmergency && (
-            <div className="bg-red-50 border-2 border-red-500 rounded-xl p-3 text-center space-y-2 animate-pulse mt-4">
+            <div role="alert" aria-live="assertive" className="bg-red-50 border-2 border-red-500 rounded-xl p-3 text-center space-y-2 animate-pulse mt-4">
               <AlertTriangle className="w-8 h-8 text-red-500 mx-auto" />
               <h4 className="text-xs font-black text-red-600 tracking-wider uppercase">Emergency Warning Triggered</h4>
               <p className="text-[10px] text-slate-700">

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, PluginListenerHandle } from '@capacitor/core';
 import { LocalNotifications, ActionPerformed } from '@capacitor/local-notifications';
 import { Medication } from '../types';
 
@@ -253,6 +253,7 @@ export function calculateDailyDoseTimes(frequencyStr: string = "", dosageStr: st
 
 class NotificationService {
   private isNative: boolean;
+  private actionListenerHandle: PluginListenerHandle | null = null;
 
   constructor() {
     this.isNative = Capacitor.isNativePlatform();
@@ -571,11 +572,17 @@ class NotificationService {
   public async setupNotificationListeners(
     onMarkTaken?: (medicationId: string) => void,
     onSnooze?: (medicationId: string) => void
-  ): Promise<void> {
-    if (!this.isNative) return;
+  ): Promise<PluginListenerHandle | null> {
+    if (!this.isNative) return null;
 
     try {
-      await LocalNotifications.addListener(
+      // Remove any previously registered action listener to avoid duplicate listener accumulation
+      if (this.actionListenerHandle) {
+        await this.actionListenerHandle.remove();
+        this.actionListenerHandle = null;
+      }
+
+      const handle = await LocalNotifications.addListener(
         'localNotificationActionPerformed',
         (action: ActionPerformed) => {
           console.log('Notification action performed:', action);
@@ -605,8 +612,12 @@ class NotificationService {
           }
         }
       );
+
+      this.actionListenerHandle = handle;
+      return handle;
     } catch (err) {
       console.warn('Failed to add local notification action listener:', err);
+      return null;
     }
   }
 }

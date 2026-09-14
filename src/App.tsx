@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
+import { getApiUrl } from "./config/api";
 import { Medication, VitalSign, Prescription, ChatMessage } from "./types";
 import AndroidFrame from "./components/AndroidFrame";
 import DesktopDashboard from "./components/DesktopDashboard";
@@ -23,6 +24,7 @@ import {
   extractAllTimeSlots, 
   parseTimeToHourMinute 
 } from "./services/notificationService";
+import { getLocalDateStr, formatFriendlyDate } from "./utils/date";
 import { 
   auth, 
   db, 
@@ -57,20 +59,6 @@ import {
   User,
   X
 } from "lucide-react";
-
-// Returns the date as YYYY-MM-DD in the USER'S LOCAL timezone (not UTC).
-// `new Date().toISOString()` always returns UTC, which rolls over at
-// 00:00 UTC — e.g. 5:30 AM in India (UTC+5:30) — NOT at the user's own
-// local midnight. Using it for "today" caused taken-medication checkmarks
-// to keep showing as taken for several hours after local midnight instead
-// of resetting right away. This helper fixes that by reading the local
-// year/month/day directly off the Date object.
-const getLocalDateStr = (d: Date = new Date()): string => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
 
 export default function App() {
   // Platform mode state: 'desktop' or 'android'
@@ -124,7 +112,7 @@ export default function App() {
 
   // Synchronize native scheduled alarms whenever medications change
   useEffect(() => {
-    if (medications && medications.length > 0) {
+    if (medications) {
       notificationService.syncAllReminders(medications);
     }
   }, [medications]);
@@ -406,7 +394,7 @@ export default function App() {
       id: toastId,
       medication: med,
       title: "Medication Reminder ⏰",
-      message: `It is now ${displayTime}. Please take your prescribed dose of ${med.name} (${med.dosage}).`,
+      message: `It's now ${displayTime}. Please take your prescribed dose of ${med.name} (${med.dosage}).`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     
@@ -521,45 +509,64 @@ export default function App() {
 
   // Toggle Medication taken today status
   const handleToggleTakeMedication = async (id: string) => {
-    const med = medications.find(m => m.id === id);
-    if (!med) return;
-
     const todayStr = getLocalDateStr();
-    const isTaken = !med.isTakenToday;
-    const updatedHistory = { ...med.takenHistory };
-    if (isTaken) {
-      updatedHistory[todayStr] = true;
-    } else {
-      delete updatedHistory[todayStr];
-    }
-    const updatedMed = {
-      ...med,
-      isTakenToday: isTaken,
-      takenHistory: updatedHistory,
-      remainingPills: isTaken ? Math.max(0, med.remainingPills - 1) : Math.min(med.totalPills, med.remainingPills + 1)
-    };
+    let updatedMedForFirestore: Medication | null = null;
+    let nextMedsForStorage: Medication[] = [];
 
-    const nextMeds = medications.map(m => m.id === id ? updatedMed : m);
-    // Optimistic local update
-    setMedications(nextMeds);
+    setMedications(prevMeds => {
+      const med = prevMeds.find(m => m.id === id);
+      if (!med) return prevMeds;
 
-    if (user) {
-      localStorage.setItem(`cg_meds_${user.uid}`, JSON.stringify(nextMeds));
+      const isTaken = !med.isTakenToday;
+      const updatedHistory = { ...med.takenHistory };
+      if (isTaken) {
+        updatedHistory[todayStr] = true;
+      } else {
+        delete updatedHistory[todayStr];
+      }
+
+      const totalPills = med.totalPills ?? 30;
+      const remainingPills = med.remainingPills ?? totalPills;
+
+      const updatedMed = {
+        ...med,
+        isTakenToday: isTaken,
+        takenHistory: updatedHistory,
+        remainingPills: isTaken ? Math.max(0, remainingPills - 1) : Math.min(totalPills, remainingPills + 1)
+      };
+
+      updatedMedForFirestore = updatedMed;
+      nextMedsForStorage = prevMeds.map(m => m.id === id ? updatedMed : m);
+      return nextMedsForStorage;
+    });
+
+    if (user && updatedMedForFirestore) {
+      localStorage.setItem(`cg_meds_${user.uid}`, JSON.stringify(nextMedsForStorage));
       try {
-        await setDoc(doc(db, "users", user.uid, "medications", id), updatedMed);
+        await setDoc(doc(db, "users", user.uid, "medications", id), updatedMedForFirestore);
       } catch (err) {
         console.error("Firestore sync failed for medication check:", err);
       }
     }
   };
 
-  // Register interactive notification action listeners
+  // Register interactive notification action listeners with proper handle cleanup
   useEffect(() => {
+    let activeHandle: any = null;
+
     notificationService.setupNotificationListeners(
       (medId) => handleToggleTakeMedication(medId),
       (medId) => console.log("Snoozed medication alarm for ID:", medId)
-    );
-  }, [medications]);
+    ).then(handle => {
+      activeHandle = handle;
+    });
+
+    return () => {
+      if (activeHandle && typeof activeHandle.remove === 'function') {
+        activeHandle.remove();
+      }
+    };
+  }, []);
 
   // Add Medication routine
   const handleAddMedication = async (newMed: {
@@ -691,19 +698,44 @@ export default function App() {
   };
 
   // Auto-sync medications imported from scan with intelligent 24h dose-divided timings
-  const handleImportMedsFromPrescription = (meds: { name: string; dosage: string; frequency: string; instructions: string }[]) => {
-    meds.forEach(m => {
-      const calculatedTiming = calculateDailyDoseTimes(m.frequency, m.dosage);
-      handleAddMedication({
-        name: m.name,
-        dosage: m.dosage,
-        time: calculatedTiming,
-        frequency: m.frequency || "Daily",
-        category: "Other",
-        totalPills: 30,
-        instructions: m.instructions
-      });
+  const handleImportMedsFromPrescription = async (meds: { name: string; dosage: string; frequency: string; instructions: string }[]) => {
+    const importedMeds: Medication[] = meds.map(m => ({
+      id: "med-" + Math.random().toString(36).substring(2, 9),
+      name: m.name,
+      dosage: m.dosage,
+      time: calculateDailyDoseTimes(m.frequency, m.dosage),
+      frequency: m.frequency || "Daily",
+      category: "Other" as any,
+      isTakenToday: false,
+      takenHistory: {},
+      remainingPills: 30,
+      totalPills: 30,
+      instructions: m.instructions,
+      reminderEnabled: true
+    }));
+
+    if (importedMeds.length === 0) return;
+
+    let updatedList: Medication[] = [];
+    setMedications(prevMeds => {
+      updatedList = [...prevMeds, ...importedMeds];
+      return updatedList;
     });
+
+    if (user) {
+      localStorage.setItem(`cg_meds_${user.uid}`, JSON.stringify(updatedList));
+      try {
+        await Promise.all(importedMeds.map(med =>
+          setDoc(doc(db, "users", user.uid, "medications", med.id), med)
+        ));
+      } catch (err) {
+        console.error("Firestore sync failed for imported medications:", err);
+      }
+    }
+
+    await Promise.all(importedMeds.map(med =>
+      notificationService.scheduleMedicationReminder(med)
+    ));
   };
 
   // Send message to CardioGuard AI Nurse
@@ -728,7 +760,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch("/api/gemini/chat", {
+      const res = await fetch(getApiUrl("/api/gemini/chat"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: updatedMessages })
@@ -826,7 +858,7 @@ export default function App() {
       case 'home':
       default:
         // Android App Home Screen Dashboard
-        const todayStr = "Friday, July 3";
+        const todayStr = formatFriendlyDate(new Date());
         const pendingCount = medications.filter(m => !m.isTakenToday).length;
         const compliancePct = medications.length > 0 ? Math.round((medications.filter(m => m.isTakenToday).length / medications.length) * 100) : 100;
         const patientName = clinicalName || user?.displayName || user?.email?.split('@')[0] || user?.phoneNumber || "Patient User";

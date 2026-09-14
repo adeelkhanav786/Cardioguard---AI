@@ -13,10 +13,28 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const getLocalDateStr = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: "15mb" }));
+
+// Enable CORS for mobile APK (Capacitor) and cross-origin clients
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 app.use((req, res, next) => {
   console.log(`[CardioGuard Server] INCOMING REQUEST: ${req.method} ${req.originalUrl}`);
@@ -24,12 +42,13 @@ app.use((req, res, next) => {
 });
 
 // Initialize Gemini AI Client
-const apiKey = process.env.GEMINI_API_KEY;
 let aiClient: GoogleGenAI | null = null;
 
 function getAiClient(): GoogleGenAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!aiClient && apiKey) {
     aiClient = new GoogleGenAI({
+      apiKey: apiKey
     });
   }
   return aiClient;
@@ -76,7 +95,7 @@ app.put("/api/medications/:id/take", (req, res) => {
     return res.status(404).json({ error: "Medication not found" });
   }
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateStr();
   med.isTakenToday = !med.isTakenToday;
   
   if (med.isTakenToday) {
@@ -108,7 +127,7 @@ app.post("/api/prescriptions", (req, res) => {
     id: "rx-" + Math.random().toString(36).substring(2, 9),
     doctorName: req.body.doctorName || "Dr. Unnamed",
     doctorSpecialty: req.body.doctorSpecialty || "General Practitioner",
-    date: req.body.date || new Date().toISOString().split('T')[0],
+    date: req.body.date || getLocalDateStr(),
     medications: req.body.medications || [],
     diagnosis: req.body.diagnosis || "Cardiovascular evaluation",
     notes: req.body.notes || "",
@@ -212,7 +231,7 @@ Provide your response strictly in the following JSON format:
 }
 `;
     const response = await client.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-3.6-flash",
       contents: `Perform safety check for new medicine: "${newMedicine}" against current list: [${medsList} and also provide help in common health related issues and others.]`,
       config: {
         systemInstruction,
@@ -281,7 +300,7 @@ IMPORTANT RULES:
 3. Be warm, calming, supportive, and clear. Avoid jargon where possible. Refer back to the patient's prescribed medications (Metoprolol, Lisinopril, Lipitor, Baby Aspirin) if they ask about heart medicine routines.`;
 
     const response = await client.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-3.6-flash",
       contents: formattedContents,
       config: {
         systemInstruction,
@@ -374,7 +393,7 @@ Patient takes daily blood pressure routines. Assess for bradycardia or acute hyp
     }
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.6-flash",
       contents: promptText,
       config: {
         temperature: 0.3
@@ -430,7 +449,7 @@ Rules:
 - If no medications are found at all, return an empty array for "medications".`;
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.6-flash",
       contents: [
         {
           role: "user",
@@ -533,4 +552,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start the standalone listener when not running in Vercel Serverless environment
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;

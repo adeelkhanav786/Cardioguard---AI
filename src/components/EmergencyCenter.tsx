@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Medication, VitalSign, Prescription } from "../types";
+import { getApiUrl } from "../config/api";
 import {
   AlertOctagon,
   Phone,
@@ -147,7 +148,7 @@ export default function EmergencyCenter({
   const generateHealthSummary = async () => {
     setIsGeneratingSummary(true);
     try {
-      const res = await fetch("/api/gemini/health-summary", {
+      const res = await fetch(getApiUrl("/api/gemini/health-summary"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

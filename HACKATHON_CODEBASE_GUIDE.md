@@ -95,7 +95,7 @@ graph TD
 | **Mobile Runtime** | Capacitor 8 (`@capacitor/android`, `@capacitor/core`) | Bridges web code to native Android APIs (Alarms, Notifications) |
 | **Mobile Notifications**| `@capacitor/local-notifications` | Native Android alarm channels, persistent lockscreen reminders |
 | **AI / Multimodal** | Google Gemini API (`@google/genai` SDK v2.4.0) | Vision OCR, drug interaction checks, nurse chat, EMT summaries |
-| **AI Models Used** | `gemini-3.8-flash`, `gemini-3.5-flash` | Low latency, high reasoning fidelity for medical schemas |
+| **AI Models Used** | `gemini-2.5-flash` | Low latency, high reasoning fidelity for medical schemas |
 | **Primary Backend** | Node.js, Express, tsx, Vite Middleware (`server.ts`) | Unified dev/prod server, Gemini proxy, SSR/SPA routing |
 | **Microservice Backend**| Python 3, FastAPI, Uvicorn, Pydantic (`main.py`) | Alternative lightweight Python AI REST API with CORS |
 | **Cloud Database** | Firebase Cloud Firestore v12 | Real-time cloud sync for meds, vitals, prescriptions, settings |
@@ -169,7 +169,7 @@ graph TD
 1. **Camera / Upload Capture:** The user snaps a picture using their smartphone camera or uploads a saved doctor's prescription slip via `navigator.mediaDevices.getUserMedia`.
 2. **Client-Side Compression (`resizeImage`):** Cloud Firestore limits individual documents to 1 MiB. The component renders the image to an HTML5 Canvas, downsamples it to a maximum width of 1000px, and encodes it as JPEG (quality 0.7) to ensure instant network transfer and safe Firestore persistence.
 3. **Multimodal Extraction:** The base64 payload is transmitted to `/api/gemini/scan-prescription` on `server.ts`.
-4. **Structured JSON Output:** The Gemini model (`gemini-3.5-flash`) processes the handwriting and returns a strictly typed JSON object:
+4. **Structured JSON Output:** The Gemini model (`gemini-2.5-flash`) processes the handwriting and returns a strictly typed JSON object:
    ```json
    {
      "doctorName": "Dr. Sarah Jenkins, MD",

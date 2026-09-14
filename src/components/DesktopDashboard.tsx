@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { Medication, VitalSign, Prescription, ChatMessage } from "../types";
 import VitalsTracker from "./VitalsTracker";
 import MedicationManager from "./MedicationManager";
@@ -16,7 +16,9 @@ import {
   User, 
   Stethoscope, 
   Flame, 
-  ShieldCheck 
+  ShieldCheck,
+  AlertTriangle,
+  PhoneCall
 } from "lucide-react";
 
 interface DesktopDashboardProps {
@@ -59,6 +61,18 @@ export default function DesktopDashboard({
   const takenCount = medications.filter(m => m.isTakenToday).length;
   const totalCount = medications.length;
   const compliance = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 100;
+
+  // Emergency state detection from chat alerts, critical telemetry, or manual trigger
+  const [manualEmergencyTrigger, setManualEmergencyTrigger] = useState(false);
+  const lastMessage = chatMessages[chatMessages.length - 1];
+  const isChatEmergency = Boolean(
+    lastMessage && lastMessage.role === 'model' && 
+    (lastMessage.content.includes("EMERGENCY") || lastMessage.content.includes("⚠️") || lastMessage.content.includes("911"))
+  );
+  const isHeartCritical = Boolean(
+    vitals[0] && (vitals[0].heartRate > 120 || vitals[0].heartRate < 50 || vitals[0].bloodPressureSystolic >= 180)
+  );
+  const containsEmergency = isChatEmergency || isHeartCritical || manualEmergencyTrigger;
 
   return (
     <div className="space-y-6 animate-fadeIn p-2">
@@ -116,6 +130,86 @@ export default function DesktopDashboard({
           <div className="flex items-center space-x-1.5 text-[10px] text-emerald-700 font-medium mt-2">
             <Activity className="w-3.5 h-3.5 text-red-500 animate-pulse" />
             <span>Pulsing smoothly</span>
+          </div>
+        </div>
+
+        {/* Emergency Warning Trigger Banner (Directly next to Heart Rate Column) */}
+        <div 
+          role="alert" 
+          aria-live="assertive"
+          className={`col-span-1 border rounded-2xl p-4 flex flex-col justify-between shadow-sm transition-all duration-300 ${
+            containsEmergency
+              ? "bg-red-50 border-red-500 shadow-md shadow-red-500/20 ring-2 ring-red-400 animate-pulse"
+              : "bg-white border-red-100"
+          }`}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <span className={`text-[10px] font-bold uppercase tracking-wider block ${containsEmergency ? "text-red-700 font-extrabold" : "text-slate-500"}`}>
+                Emergency Safety
+              </span>
+              <h4 className="text-xs font-black text-red-600 tracking-wider uppercase mt-1 flex items-center space-x-1.5">
+                {containsEmergency ? (
+                  <>
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-600 flex-shrink-0 animate-bounce" />
+                    <span>Emergency Warning Triggered</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                    <span className="text-slate-800">Safety Guard Standby</span>
+                  </>
+                )}
+              </h4>
+            </div>
+            <div className={`p-1.5 rounded-xl ${containsEmergency ? "bg-red-100 text-red-600" : "bg-red-50 text-red-500"}`}>
+              {containsEmergency ? (
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+              ) : (
+                <PhoneCall className="w-4 h-4 text-red-500" />
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 text-slate-700">
+            {containsEmergency ? (
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-red-800 font-medium leading-tight">
+                  Critical cardiovascular alert detected. Stop all exertion!
+                </p>
+                <div className="flex items-center space-x-2 pt-0.5">
+                  <a
+                    href="tel:911"
+                    className="flex-1 text-center bg-red-600 hover:bg-red-500 text-white font-black text-[11px] py-1.5 px-2 rounded-lg shadow-sm transition-all uppercase tracking-wide animate-bounce"
+                  >
+                    🚨 DIAL 911 / EMS NOW
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setManualEmergencyTrigger(false)}
+                    className="text-[9px] text-slate-500 hover:text-slate-700 px-1.5 py-1 underline font-semibold"
+                    title="Dismiss warning"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-1 text-[10px] text-emerald-700 font-medium">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Active 24/7 Monitor</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setManualEmergencyTrigger(true)}
+                  className="text-[9px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-md border border-red-200 transition-colors uppercase tracking-wider"
+                  title="Test or trigger emergency banner"
+                >
+                  Trigger SOS
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

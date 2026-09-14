@@ -5,6 +5,7 @@
 
 import React, { useState } from "react";
 import { Medication } from "../types";
+import { getApiUrl } from "../config/api";
 import { Search, AlertTriangle, ShieldCheck, FileText, CheckCircle2 } from "lucide-react";
 
 interface DrugInteractionCheckerProps {
@@ -23,7 +24,7 @@ export default function DrugInteractionChecker({ medications, compactMode = fals
     setResult(null);
 
     try {
-      const res = await fetch("/api/drug-safety/check", {
+      const res = await fetch(getApiUrl("/api/drug-safety/check"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -5,6 +5,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Prescription } from "../types";
+import { getApiUrl } from "../config/api";
 import { 
   FileText, 
   Stethoscope, 
@@ -154,7 +155,7 @@ export default function PrescriptionViewer({
 
       const base64Payload = fullImage.split(",")[1]; // strip "data:image/jpeg;base64,"
 
-      const res = await fetch("/api/gemini/scan-prescription", {
+      const res = await fetch(getApiUrl("/api/gemini/scan-prescription"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: base64Payload, mimeType: "image/jpeg" })
