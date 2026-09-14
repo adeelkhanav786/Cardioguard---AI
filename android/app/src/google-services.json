@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "974234507121",
+    "project_id": "cardioguard-ai-75ed3",
+    "storage_bucket": "cardioguard-ai-75ed3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:974234507121:android:f7b39293f6a864c5a2c8d0",
+        "android_client_info": {
+          "package_name": "com.cardioguard.ai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "974234507121-vuvrnatql3dsiecvk454uft8kldbjsqc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cardioguard.ai",
+            "certificate_hash": "aee5eb2e7cae78c1daa05112fe3fa85440d26107"
+          }
+        },
+        {
+          "client_id": "974234507121-112u1nsf3q8trb78s6u552ka1juldvnn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUEmkDPS6Na_5Udz5G9f970juDIbt8h3k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "974234507121-112u1nsf3q8trb78s6u552ka1juldvnn.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
