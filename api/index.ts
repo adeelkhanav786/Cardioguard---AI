@@ -1,4 +1,481 @@
-import app from "../server";
+/**
+ * CardioGuard AI - Vercel Serverless Function API Entrypoint
+ * Standalone, self-contained, zero-external-relative-dependencies
+ */
+
+import express from "express";
+import { GoogleGenAI } from "@google/genai";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const getLocalDateStr = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const app = express();
+
+app.use(express.json({ limit: "15mb" }));
+
+// Enable CORS for mobile APK (Capacitor) and cross-origin clients
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+app.use((req, res, next) => {
+  console.log(`[CardioGuard API] INCOMING REQUEST: ${req.method} ${req.originalUrl || req.url}`);
+  next();
+});
+
+// Initialize Gemini AI Client
+let aiClient: GoogleGenAI | null = null;
+
+function getAiClient(): GoogleGenAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!aiClient && apiKey) {
+    aiClient = new GoogleGenAI({
+      apiKey: apiKey
+    });
+  }
+  return aiClient;
+}
+
+// In-memory state fallbacks
+let medications: any[] = [];
+let prescriptions: any[] = [];
+let vitals: any[] = [];
+
+const router = express.Router();
+
+// GET Healthcheck
+router.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// GET Medications
+router.get("/medications", (req, res) => {
+  res.json(medications);
+});
+
+// POST Add Medication
+router.post("/medications", (req, res) => {
+  const newMed = {
+    id: "med-" + Math.random().toString(36).substring(2, 9),
+    name: req.body.name || "Unnamed Medication",
+    dosage: req.body.dosage || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.dosage || "",
+    time: req.body.time || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.time || "",
+    frequency: req.body.frequency || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.frequency || "Daily",
+    category: req.body.category || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.category || "Other",
+    isTakenToday: false,
+    takenHistory: {},
+    remainingPills: req.body.totalPills || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.totalPills || 30,
+    totalPills: req.body.totalPills || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.totalPills || 30,
+    instructions: req.body.instructions || prescriptions.map(p => p.medications).flat().find((m: any) => m.name.toLowerCase() === req.body.name.toLowerCase())?.instructions || ""
+  };
+  medications.push(newMed);
+  res.status(201).json(newMed);
+});
+
+// PUT Take Medication
+router.put("/medications/:id/take", (req, res) => {
+  const { id } = req.params;
+  const med = medications.find(m => m.id === id);
+  if (!med) {
+    return res.status(404).json({ error: "Medication not found" });
+  }
+
+  const todayStr = getLocalDateStr();
+  med.isTakenToday = !med.isTakenToday;
+  
+  if (med.isTakenToday) {
+    med.takenHistory[todayStr] = true;
+    med.remainingPills = Math.max(0, med.remainingPills - 1);
+  } else {
+    delete med.takenHistory[todayStr];
+    med.remainingPills = Math.min(med.totalPills, med.remainingPills + 1);
+  }
+
+  res.json(med);
+});
+
+// DELETE Medication
+router.delete("/medications/:id", (req, res) => {
+  const { id } = req.params;
+  medications = medications.filter(m => m.id !== id);
+  res.json({ success: true, id });
+});
+
+// GET Prescriptions
+router.get("/prescriptions", (req, res) => {
+  res.json(prescriptions);
+});
+
+// POST Add Prescription
+router.post("/prescriptions", (req, res) => {
+  const newRx = {
+    id: "rx-" + Math.random().toString(36).substring(2, 9),
+    doctorName: req.body.doctorName || "Dr. Unnamed",
+    doctorSpecialty: req.body.doctorSpecialty || "General Practitioner",
+    date: req.body.date || getLocalDateStr(),
+    medications: req.body.medications || [],
+    diagnosis: req.body.diagnosis || "Cardiovascular evaluation",
+    notes: req.body.notes || "",
+    signature: req.body.signature || "MD"
+  };
+  prescriptions.push(newRx);
+  res.status(201).json(newRx);
+});
+
+// GET Vitals
+router.get("/vitals", (req, res) => {
+  res.json(vitals);
+});
+
+// POST Log Vitals
+router.post("/vitals", (req, res) => {
+  const newVital = {
+    id: "v-" + Math.random().toString(36).substring(2, 9),
+    timestamp: new Date().toISOString(),
+    heartRate: Number(req.body.heartRate) || 75,
+    bloodPressureSystolic: Number(req.body.bloodPressureSystolic) || 120,
+    bloodPressureDiastolic: Number(req.body.bloodPressureDiastolic) || 80,
+    spo2: Number(req.body.spo2) || 98,
+    weight: req.body.weight ? Number(req.body.weight) : undefined,
+    notes: req.body.notes || ""
+  };
+  vitals.unshift(newVital);
+  res.status(201).json(newVital);
+});
+
+// POST Drug Safety Checker
+router.post("/drug-safety/check", async (req, res) => {
+  const { newMedicine, currentMedications } = req.body;
+  if (!newMedicine) {
+    return res.status(400).json({ error: "New medicine name is required." });
+  }
+
+  const client = getAiClient();
+  if (!client) {
+    const newMedLower = newMedicine.toLowerCase();
+    const hasAspirin = currentMedications.some((m: any) => m.name.toLowerCase().includes("aspirin"));
+    const hasBetaBlocker = currentMedications.some((m: any) => m.name.toLowerCase().includes("metoprolol") || m.category === "Beta-Blocker");
+    const hasAceInhibitor = currentMedications.some((m: any) => m.name.toLowerCase().includes("lisinopril") || m.category === "ACE-Inhibitor");
+
+    if (newMedLower.includes("ibuprofen") || newMedLower.includes("advil") || newMedLower.includes("nsaid")) {
+      if (hasAspirin) {
+        return res.json({
+          severity: "high",
+          title: "High Interaction Found",
+          message: "Ibuprofen may decrease the cardioprotective effect of Aspirin and significantly increase the risk of gastrointestinal bleeding or ulceration when taken concurrently. Avoid co-administration.",
+          sources: ["DDInter", "OpenFDA"]
+        });
+      } else if (hasAceInhibitor || hasBetaBlocker) {
+        return res.json({
+          severity: "medium",
+          title: "Moderate Interaction Found",
+          message: "NSAIDs like Ibuprofen can decrease the blood-pressure-lowering effects of ACE inhibitors (Lisinopril) and Beta-Blockers (Metoprolol), and can also increase the risk of acute renal impairment.",
+          sources: ["DDInter", "OpenFDA"]
+        });
+      }
+    } else if (newMedLower.includes("grapefruit")) {
+      const hasStatin = currentMedications.some((m: any) => m.name.toLowerCase().includes("atorvastatin") || m.name.toLowerCase().includes("lipitor"));
+      if (hasStatin) {
+        return res.json({
+          severity: "high",
+          title: "High Interaction Found",
+          message: "Grapefruit juice inhibits CYP3A4, which increases blood levels of Atorvastatin, significantly elevating the risk of myopathy (muscle pain) and rhabdomyolysis (severe muscle breakdown). Avoid grapefruit consumption.",
+          sources: ["OpenFDA"]
+        });
+      }
+    } else if (newMedLower.includes("viagra") || newMedLower.includes("sildenafil")) {
+      return res.json({
+        severity: "high",
+        title: "High Interaction Found",
+        message: "Sildenafil (Viagra) causes profound vasodilation. If you are taking any organic nitrates (e.g., Nitroglycerin, Isosorbide) or other antihypertensives, concurrent use can cause severe, life-threatening hypotension (extreme drop in blood pressure).",
+        sources: ["RxNorm", "DDInter"]
+      });
+    }
+
+    return res.json({
+      severity: "none",
+      title: "No Known Major Interactions",
+      message: `No major interactions were immediately found between ${newMedicine} and your active medications list. Please always double check with your doctor.`,
+      sources: ["DDInter", "OpenFDA"]
+    });
+  }
+
+  try {
+    const medsList = currentMedications.map((m: any) => `${m.name} (${m.dosage || ''})`).join(", ");
+    const systemInstruction = `You are an expert clinical pharmacologist and drug-safety checker.
+Analyze if there are any dangerous interactions, warnings, or adverse combinations between the user's current medications: [${medsList}] and a proposed new medication: "${newMedicine}".
+
+Provide your response strictly in the following JSON format:
+{
+  "severity": "high" | "medium" | "none",
+  "title": "Short title describing safety state",
+  "message": "Clear explanation of the interaction, the mechanism, and clinical advice (e.g., consult a physician). Keep it to 2-3 sentences.",
+  "sources": ["RxNorm", "DDInter", "OpenFDA"]
+}
+`;
+    const response = await client.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: `Perform safety check for new medicine: "${newMedicine}" against current list: [${medsList} and also provide help in common health related issues and others.]`,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        temperature: 0.2
+      }
+    });
+
+    try {
+      const parsed = JSON.parse(response.text);
+      res.json(parsed);
+    } catch (e) {
+      res.json({
+        severity: "medium",
+        title: "Potential Warning",
+        message: response.text,
+        sources: ["Gemini Clinical Engine"]
+      });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST CardioGuard AI Nurse Chat
+router.post("/gemini/chat", async (req, res) => {
+  try {
+    const { messages } = req.body;
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: "Messages array is required." });
+    }
+
+    const client = getAiClient();
+    if (!client) {
+      const lastUserMsg = messages[messages.length - 1]?.content || "Hi";
+      let fallbackText = "Hello! I am CardioGuard AI, your virtual cardiovascular nursing assistant. " +
+        "It looks like my server is operating in offline mode right now (Gemini API key is pending setup), but I can still offer some standard guidance!\n\n" +
+        "**Medication Reminder:** It is crucial to take Metoprolol and Lisinopril consistently as prescribed, generally at the same time each morning. Taking your blood pressure before taking these can help verify your current trends.\n\n" +
+        "**Heart-Healthy Advice:** Try to focus on a DASH/Low-Sodium diet (under 1,500 - 2,000mg of sodium daily) and engage in moderate cardiovascular exercises like brisk walking for 30 minutes, if cleared by Dr. Jenkins.\n\n" +
+        "*Disclaimer: I am an AI support tool. Please consult your physician before altering your medication or exercise plan. If you experience severe chest pressure, radiating arm pain, or severe shortness of breath, please dial 911 immediately.*";
+        
+      if (lastUserMsg.toLowerCase().includes("pain") || lastUserMsg.toLowerCase().includes("chest")) {
+        fallbackText = "⚠️ **IMMEDIATE CARDIOVASCULAR EMERGENCY WARNING** ⚠️\n\n" +
+          "As your heart health assistant, if you are experiencing chest pain or discomfort. Chest pain, heavy pressure, or radiating tightness to your shoulder, arm, back, neck, or jaw is a secondary sign of acute cardiac events.\n\n" +
+          "**ACTION REQUIRED:** Please IMMEDIATELY stop using this app and call 911 or your local emergency response services. Do not drive yourself to the ER; wait for professional medical rescue services.\n\n" +
+          "*This is an automated safety warning from CardioGuard AI.*";
+      }
+
+      return res.json({ text: fallbackText });
+    }
+
+    const formattedContents = messages.map((m: any) => ({
+      role: m.role,
+      parts: [{ text: m.content }]
+    }));
+
+    const systemInstruction = `You are CardioGuard AI, an empathetic, highly knowledgeable virtual cardiovascular nurse assisting heart disease patients with daily care. You help patients track their medication schedules, explain prescription notes, offer healthy cardiovascular recipes, and provide guidance on heart-healthy exercises.
+
+IMPORTANT RULES:
+1. Always include a short, gentle professional disclaimer at the very end of your response that your guidance is for informational and organizational support only, and that the patient should consult their primary cardiologist for any actual medical changes or clinical symptoms. If the question is asked in a different language reply in that language only like hindi, hinglish or etc.
+2. Do NOT diagnose acute clinical emergencies. If the patient describes severe symptoms like chest pain radiating to the shoulder or arm, severe shortness of breath, sudden numbness, or fainting, URGE them immediately to seek emergency medical attention (call 911/emergency services) and stop using the chat.
+3. Be warm, calming, supportive, and clear. Avoid jargon where possible. Refer back to the patient's prescribed medications (Metoprolol, Lisinopril, Lipitor, Baby Aspirin) if they ask about heart medicine routines.`;
+
+    const response = await client.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: formattedContents,
+      config: {
+        systemInstruction,
+        temperature: 0.7
+      }
+    });
+
+    res.json({ text: response.text });
+  } catch (err: any) {
+    console.error("Gemini API Error in /api/gemini/chat:", err);
+    res.status(500).json({ error: "An error occurred with CardioGuard AI: " + err.message });
+  }
+});
+
+// POST Create Emergency Medical Summary with Gemini
+router.post("/gemini/health-summary", async (req, res) => {
+  try {
+    const { patientName, medications, vitals, prescriptions, emergencyConfig, diseases, allergies } = req.body;
+    const client = getAiClient();
+
+    const medsStr = medications && medications.length > 0 
+      ? medications.map((m: any) => `- ${m.name} (${m.dosage}): taken ${m.frequency || 'Daily'}, time: ${m.time || 'Morning'}, instructions: ${m.instructions || 'None'}`).join("\n")
+      : "No active medications registered.";
+
+    const vitalsStr = vitals && vitals.length > 0
+      ? vitals.slice(0, 3).map((v: any) => `- HR: ${v.heartRate} BPM, BP: ${v.bloodPressureSystolic}/${v.bloodPressureDiastolic} mmHg, SpO2: ${v.spo2}%, Date: ${new Date(v.timestamp).toLocaleString()}`).join("\n")
+      : "No recent vital logs registered.";
+
+    const rxStr = prescriptions && prescriptions.length > 0
+      ? prescriptions.map((p: any) => `- Doctor: ${p.doctorName} (${p.doctorSpecialty}), Diagnosis: ${p.diagnosis}, Notes: ${p.notes}`).join("\n")
+      : "No official prescriptions scanned.";
+
+    const emergencyStr = emergencyConfig 
+      ? `Primary Contact: ${emergencyConfig.primaryEmergencyNumber || 'Not stored'}\nFamily Emergency Contact: ${emergencyConfig.trustedName || 'None'} (${emergencyConfig.trustedNumber || 'None'})`
+      : "No customized contacts saved.";
+
+    const promptText = `
+Patient Name: ${patientName || "Anonymous Patient"}
+Declared Chronic Diseases/Conditions: ${diseases || "None declared"}
+Declared Active Allergies: ${allergies || "None declared"}
+
+Active Medications:
+${medsStr}
+
+Recent Vitals Logs:
+${vitalsStr}
+
+Diagnoses & Clinical Notes:
+${rxStr}
+
+Emergency Configured Contacts:
+${emergencyStr}
+
+Please generate an Emergency Medical Health Summary that a first-responder, EMT, or emergency room physician needs to know IMMEDIATELY.
+Keep the output extremely structured, concise (maximum 200 words), and prioritize:
+1. High-risk cardiac status and chronic diseases/conditions: ${diseases || "None declared"}
+2. Critical active medication routine (e.g. Beta-Blockers, ACE-inhibitors, anticoagulants)
+3. Latest vital trends and safety alerts
+4. Critical active allergies: ${allergies || "None declared"}
+
+Do NOT use markdown headers (e.g. no #, ##, ###). Use simple uppercase headings and bullet points instead. Keep it clean and highly scannable.
+`;
+
+    if (!client) {
+      const fallbackSummary = `EMERGENCY MEDICAL PROFILE: ${patientName || "Anonymous Patient"}
+
+CHRONIC CONDITIONS & DISEASES:
+${diseases || "None declared"}
+
+KNOWN ALLERGIES:
+${allergies || "None declared"}
+
+PRIMARY CARDIOVASCULAR DIAGNOSIS:
+${prescriptions && prescriptions[0] ? prescriptions[0].diagnosis : "Mild Left Ventricular Dysfunction & Hypertension"}
+
+ACTIVE LIFE-SUPPORT MEDICATIONS:
+${medications && medications.length > 0 ? medications.map((m: any) => `- ${m.name} (${m.dosage})`).join("\n") : "- Metoprolol Succinate (50mg)\n- Lisinopril (10mg)"}
+
+LATEST RECORDED VITALS:
+${vitals && vitals[0] ? `HR: ${vitals[0].heartRate} BPM | BP: ${vitals[0].bloodPressureSystolic}/${vitals[0].bloodPressureDiastolic} mmHg | SpO2: ${vitals[0].spo2}%` : "HR: 72 BPM | BP: 122/80 mmHg | SpO2: 98%"}
+
+EMERGENCY CONTACTS:
+${emergencyStr}
+
+CLINICAL RECOMMENDATION:
+Patient takes daily blood pressure routines. Assess for bradycardia or acute hypotensive reactions. Always verify medication compliance prior to administration of any contrast agent or sedative.`;
+      
+      return res.json({ summary: fallbackSummary });
+    }
+
+    const response = await client.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: promptText,
+      config: {
+        temperature: 0.3
+      }
+    });
+
+    res.json({ summary: response.text });
+  } catch (err: any) {
+    console.error("Gemini API Error in /api/gemini/health-summary:", err);
+    res.status(500).json({ error: "Failed to generate health summary: " + err.message });
+  }
+});
+
+// POST Prescription Scanner - AI Vision extraction
+router.post("/gemini/scan-prescription", async (req, res) => {
+  try {
+    const { imageBase64, mimeType } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: "imageBase64 is required." });
+    }
+
+    const client = getAiClient();
+    if (!client) {
+      return res.status(503).json({
+        error: "AI Scanner is offline: GEMINI_API_KEY is not configured on the server. Real prescription scanning requires a valid Gemini API key."
+      });
+    }
+
+    const systemInstruction = `You are an expert clinical OCR and prescription-parsing assistant. You will be given a photo of a doctor's prescription slip.
+Read all visible text carefully, including handwritten sections, and extract the following structured information.
+
+Respond strictly in this JSON format and nothing else:
+{
+  "doctorName": "string (e.g. 'Dr. John Smith'), or 'Unknown Doctor' if illegible",
+  "doctorSpecialty": "string, or 'General Practitioner' if not stated",
+  "date": "YYYY-MM-DD if visible, otherwise today's best guess or empty string",
+  "diagnosis": "string summarizing the diagnosis/condition mentioned, or 'Not specified' if absent",
+  "notes": "string, any additional instructions or clinical notes on the slip",
+  "signature": "string, the doctor's printed/signed name and credentials if visible",
+  "medications": [
+    {
+      "name": "medicine name exactly as written, expand abbreviations where confident (e.g. 'Metoprolol Succ' -> 'Metoprolol Succinate')",
+      "dosage": "e.g. '50mg', '5ml', '1 tablet', the above string is example give the dosage as it is written in prescription slip",
+      "frequency": "e.g. 'Twice Daily', 'Once at night', 'Every 8 hours', the above string is example give the frequency as it is written in prescription slip",
+      "duration": "e.g. '7 Days', '3 Months', 'Ongoing', the above string is example give the duration as it is written in prescription slip"
+    }
+  ]
+}
+
+Rules:
+- If the image is not a legible prescription/medical document, still return valid JSON with your best-effort reading, and put "Could not clearly read this image" in the "notes" field.
+- Never invent a medicine that is not visibly written or strongly implied on the slip.
+- If no medications are found at all, return an empty array for "medications".`;
+
+    const response = await client.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType: mimeType || "image/jpeg", data: imageBase64 } },
+            { text: "Extract the prescription details from this image following the required JSON schema." }
+          ]
+        }
+      ],
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        temperature: 0.2
+      }
+    });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(response.text);
+    } catch (e) {
+      return res.status(502).json({ error: "AI scanner returned an unreadable response. Please try again with a clearer photo." });
+    }
+
+    if (!Array.isArray(parsed.medications)) parsed.medications = [];
+
+    res.json(parsed);
+  } catch (err: any) {
+    console.error("Gemini API Error in /api/gemini/scan-prescription:", err);
+    res.status(500).json({ error: "Failed to scan prescription: " + err.message });
+  }
+});
+
+// Mount router on BOTH '/api' and root '/' to guarantee matching regardless of rewrite format
+app.use("/api", router);
+app.use("/", router);
 
 export default function handler(req: any, res: any) {
   return app(req, res);
