@@ -6,7 +6,6 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
@@ -492,6 +491,7 @@ async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     console.log("[CardioGuard Server] Taking DEV branch (Vite middleware)");
     try {
+      const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
         root: process.cwd(),
         server: { middlewareMode: true },
